@@ -159,6 +159,8 @@
             background: #1a1a1a;
             border-bottom: 1px solid #333;
             height: 60px;
+            flex-shrink: 0;
+            width: 100%; /* Ensure full width */
         }
         .overlay-title { font-weight: bold; font-size: 18px; }
         .close-btn { background: none; border: none; font-size: 24px; color: #888; padding: 10px; }
@@ -223,23 +225,40 @@
         .btn-danger { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; }
         
         /* --- MENU OVERLAY (Settings) --- */
+        /* Fixed: Removed conflicting centering that broke layout */
         #menu-overlay { 
             background: rgba(0,0,0,0.95); 
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 15px; padding: 40px; text-align: center;
+        }
+        
+        #menu-overlay .panel-content {
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            padding: 30px; 
+            text-align: center;
         }
 
         /* --- UTILS --- */
         .hidden { display: none !important; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-        /* Inbox List Items */
-        .inbox-item { background: #222; padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
-        .inbox-actions { display: flex; gap: 15px; font-size: 18px; }
+        /* Inbox List Items (Fixed Truncation) */
+        .inbox-item { 
+            background: #222; padding: 12px; margin-bottom: 8px; border-radius: 6px; 
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+        }
+        .inbox-item span:first-child {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+        .inbox-actions { display: flex; gap: 15px; font-size: 18px; flex-shrink: 0; }
 
-        /* Goal Tree */
+        /* Goal Tree (Improved Tap Targets) */
         .goal-node { margin-bottom: 8px; }
-        .goal-content { background: #222; padding: 10px; border-radius: 6px; display: flex; align-items: center; }
+        .goal-content { background: #222; padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; }
         .goal-text { border: none; background: transparent; color: white; font-size: 14px; flex-grow: 1; margin-left: 10px; }
         .goal-children { margin-left: 15px; border-left: 2px solid #333; padding-left: 10px; margin-top: 5px; }
 
@@ -259,9 +278,15 @@
     <!-- TOP HEADER -->
     <div id="top-header">
         <div class="app-title">Urgency Flow</div>
-        <button class="nav-item" onclick="toggleMenu()">
-            <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-        </button>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="nav-item" onclick="toggleMenu()" style="width: auto;">
+                <!-- Sync/Cloud Icon -->
+                <svg viewBox="0 0 24 24" style="fill: var(--accent);"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+            </button>
+            <button class="nav-item" onclick="toggleMenu()" style="width: auto;">
+                <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+        </div>
     </div>
 
     <!-- CANVAS -->
@@ -642,7 +667,13 @@
             }
         }, {passive: false});
 
-        container.addEventListener('touchend', () => { isDragging = false; isPanning = false; initialPinchDist = null; draggedNodeId = null; saveToStorage(); });
+        container.addEventListener('touchend', () => { 
+            if (isDragging) saveToStorage(); // Only save if dragging occurred
+            isDragging = false; 
+            isPanning = false; 
+            initialPinchDist = null; 
+            draggedNodeId = null; 
+        });
 
         // Mouse Fallbacks
         container.addEventListener('mousedown', (e) => {
@@ -836,6 +867,8 @@
         nodes.forEach(n => { if(!n.completed) { if(n.isManualUrgent) n._isUrgent=true; else if(n._latestFinish - n._earliestFinish <= 0) n._isCritical=true; }});
     }
 
+    function saveGithubToken(val) { githubToken = val.trim(); saveToStorage(); showNotification('Token saved locally.'); }
+
     function saveToStorage() { localStorage.setItem('urgencyFlowData', JSON.stringify({ nodes, archivedNodes, inbox, lifeGoals, notes, githubToken, gistId })); showNotification("Saved"); }
     function loadFromStorage() { 
         const d = JSON.parse(localStorage.getItem('urgencyFlowData')); 
@@ -847,13 +880,18 @@
     function renderInbox() {
         const div = document.getElementById('inbox-list'); div.innerHTML = '';
         inbox.forEach((item, idx) => {
-            div.innerHTML += `<div class="inbox-item"><span>${item.title}</span><div class="inbox-actions"><span onclick="promoteInboxTask(${idx})">⬆</span><span onclick="deleteInboxTask(${idx})" style="color:#ef4444">✕</span></div></div>`;
+            div.innerHTML += `<div class="inbox-item"><span>${item.title}</span><div class="inbox-actions"><span onclick="promoteInboxTask(${idx})">⬆</span><span onclick="promoteInboxToGoal(${idx})">🎯</span><span onclick="deleteInboxTask(${idx})" style="color:#ef4444">✕</span></div></div>`;
         });
     }
     function promoteInboxTask(idx) { 
         const item = inbox[idx]; inbox.splice(idx, 1); 
         nodes.push(createNode((window.innerWidth/2-panX)/scale, (window.innerHeight/2-panY)/scale, item.title));
         saveToStorage(); renderInbox(); render(); showNotification("Task promoted");
+    }
+    function promoteInboxToGoal(idx) { 
+        const item = inbox[idx]; if(!lifeGoals[currentGoalYear]) lifeGoals[currentGoalYear] = []; 
+        lifeGoals[currentGoalYear].push(createGoal(item.title)); inbox.splice(idx, 1); 
+        renderInbox(); renderGoals(); toggleOverlay('goals-overlay'); saveToStorage(); showNotification("Goal Created");
     }
     function deleteInboxTask(idx) { inbox.splice(idx,1); saveToStorage(); renderInbox(); }
     
@@ -862,25 +900,33 @@
         const c = document.getElementById('goal-tree-container'); c.innerHTML = '';
         const goals = lifeGoals[currentGoalYear] || [];
         if(!goals.length) c.innerHTML = '<div style="color:#666; text-align:center">No goals set for this year.</div>';
-        const build = (list) => {
-            let h = ''; list.forEach(g => {
-                h += `<div class="goal-node"><div class="goal-content"><span onclick="g.collapsed=!g.collapsed; renderGoals();" style="width:20px;">${g.children.length?(g.collapsed?'▶':'▼'):'•'}</span><input class="goal-text" value="${g.text}" onchange="this.value=g.text"><span onclick="deleteGoal('${g.id}')" style="color:#666">✕</span></div><div class="goal-children" style="display:${g.collapsed?'none':'block'}">${build(g.children)}</div></div>`;
-            }); return h;
-        };
-        // Simplified rendering for brevity - would ideally map properly to object refs in real DOM
-        // Re-implementing simplified DOM builder for interaction
+        
         const listContainer = document.createElement('div');
         const appendGoals = (list, container) => {
             list.forEach(g => {
                 const node = document.createElement('div'); node.className = 'goal-node';
                 const content = document.createElement('div'); content.className = 'goal-content';
-                content.innerHTML = `<span style="width:20px; color:#888;">${g.children.length ? '▼' : '•'}</span>`;
+                
+                content.innerHTML = `<span style="width:20px; color:#888; display:inline-block; text-align:center;">${g.children.length ? (g.collapsed ? '▶' : '▼') : '•'}</span>`;
+                const caret = content.querySelector('span');
+                caret.onclick = (e) => { e.stopPropagation(); g.collapsed = !g.collapsed; renderGoals(); saveToStorage(); };
+                
                 const input = document.createElement('input'); input.className = 'goal-text'; input.value = g.text;
                 input.onchange = (e) => { g.text = e.target.value; saveToStorage(); };
-                const addSub = document.createElement('span'); addSub.innerText = '+'; addSub.style.padding='10px'; addSub.onclick = () => { g.children.push(createGoal("Subgoal")); renderGoals(); saveToStorage(); };
-                content.appendChild(input); content.appendChild(addSub);
+                
+                const addSub = document.createElement('span'); addSub.innerText = '+'; addSub.style.padding='10px'; 
+                addSub.onclick = () => { g.children.push(createGoal("Subgoal")); g.collapsed = false; renderGoals(); saveToStorage(); };
+                
+                const delBtn = document.createElement('span'); delBtn.innerText = '✕'; delBtn.style.color='#666'; delBtn.style.padding='10px';
+                delBtn.onclick = () => { if(confirm("Delete goal?")) { const idx = list.indexOf(g); list.splice(idx,1); renderGoals(); saveToStorage(); } };
+
+                content.appendChild(input); content.appendChild(addSub); content.appendChild(delBtn);
                 node.appendChild(content);
-                if(g.children.length) { const childDiv = document.createElement('div'); childDiv.className='goal-children'; appendGoals(g.children, childDiv); node.appendChild(childDiv); }
+                
+                if(g.children.length && !g.collapsed) { 
+                    const childDiv = document.createElement('div'); childDiv.className='goal-children'; 
+                    appendGoals(g.children, childDiv); node.appendChild(childDiv); 
+                }
                 container.appendChild(node);
             });
         };
@@ -991,9 +1037,51 @@
         }
     }
 
-    // --- SYNC STUBS ---
-    async function pushToGist() { showNotification("Sync logic same as original"); }
-    async function pullFromGist() { showNotification("Sync logic same as original"); }
+    // --- SYNC ---
+    async function pushToGist() {
+        if (!githubToken) return showNotification('Error: Missing GitHub Token');
+        showNotification('Pushing to GitHub...');
+        const content = JSON.stringify({ nodes, archivedNodes, inbox, lifeGoals, notes }, null, 2);
+        const files = {}; files[GIST_FILENAME] = { content: content };
+        try {
+            let url = 'https://api.github.com/gists'; let method = 'POST';
+            if (gistId) { url = `https://api.github.com/gists/${gistId}`; method = 'PATCH'; }
+            const response = await fetch(url, { method: method, headers: { 'Authorization': `token ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }, body: JSON.stringify({ description: 'Urgency Flow Data Backup', public: false, files: files }) });
+            if (!response.ok) throw new Error('GitHub API Error: ' + response.statusText);
+            const data = await response.json();
+            gistId = data.id; document.getElementById('gist-id').value = gistId; saveToStorage();
+            showNotification('Success! Saved to Gist.');
+        } catch (e) { console.error(e); showNotification('Sync Failed: ' + e.message); }
+    }
+
+    async function pullFromGist() {
+        if (!githubToken) return showNotification('Error: Missing GitHub Token');
+        showNotification('Searching for Gist...');
+        try {
+            if (!gistId) {
+                const listResp = await fetch('https://api.github.com/gists', { headers: { 'Authorization': `token ${githubToken}` } });
+                if (!listResp.ok) throw new Error('Could not list Gists');
+                const gists = await listResp.json();
+                const found = gists.find(g => g.files[GIST_FILENAME]);
+                if (found) { gistId = found.id; document.getElementById('gist-id').value = gistId; showNotification('Found Gist. Downloading...'); } 
+                else { return showNotification('No Gist found. Push first.'); }
+            }
+            const resp = await fetch(`https://api.github.com/gists/${gistId}`, { headers: { 'Authorization': `token ${githubToken}` } });
+            if (!resp.ok) throw new Error('Fetch failed');
+            const data = await resp.json();
+            const fileContent = data.files[GIST_FILENAME].content;
+            const parsed = JSON.parse(fileContent);
+            if (parsed.nodes) nodes = parsed.nodes;
+            if (parsed.archivedNodes) archivedNodes = parsed.archivedNodes;
+            if (parsed.inbox) inbox = parsed.inbox;
+            if (parsed.lifeGoals) lifeGoals = parsed.lifeGoals;
+            if (parsed.notes) notes = parsed.notes;
+            nodes.forEach(n => { if(!n.dependencies) n.dependencies = []; });
+            saveToStorage(); updateCalculations(); render(); renderInbox(); renderGoals();
+            showNotification('Pull Complete! Data updated.');
+        } catch (e) { console.error(e); showNotification('Pull Failed: ' + e.message); }
+    }
+
     function saveData(dl) { const d = JSON.stringify({nodes, archivedNodes, inbox, lifeGoals, notes}); if(dl) { const b = new Blob([d],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='backup.json'; a.click(); } }
     function clearData() { if(confirm("Reset all data?")) { localStorage.clear(); location.reload(); } }
 
