@@ -833,6 +833,9 @@
     function deleteInboxTask(idx) { inbox.splice(idx,1); saveToStorage(); renderInbox(); }
     
     function renderGoals() {
+        // Update the visual year display to match the logic variable
+        document.getElementById('goals-year-display').innerText = currentGoalYear;
+
         const c = document.getElementById('goal-tree-container'); c.innerHTML = '';
         const goals = lifeGoals[currentGoalYear] || [];
         if(!goals.length) c.innerHTML = '<div style="color:#666; text-align:center">No goals set for this year.</div>';
