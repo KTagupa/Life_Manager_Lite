@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0c1812">
-    <title>Urgency Flow: Mobile Lite</title>
+    <title>Urgency Flow: List Edition</title>
     <style>
         :root {
             /* Calming Dark Green Theme */
@@ -19,8 +19,8 @@
             --accent-hover: #2563eb;
             --border: #333;
             
-            --node-bg: #2d2d2d;
-            --node-border: #444;
+            --node-bg: #1e1e1e;
+            --node-border: #333;
             --node-selected: #3b82f6;
             
             /* Logic Colors */
@@ -44,35 +44,99 @@
             background-size: 20px 20px;
             color: var(--text-main);
             overflow: hidden;
-            height: 100vh; /* Fallback */
-            height: 100dvh; /* Dynamic viewport height */
+            height: 100vh;
+            height: 100dvh;
             width: 100vw;
             display: flex;
             flex-direction: column;
-            touch-action: none; /* Prevent browser zooming/scrolling */
+            touch-action: pan-y; /* Allow vertical scroll */
         }
 
         /* --- MOBILE LAYOUT --- */
         
-        /* Top Header for Secondary Actions */
         #top-header {
-            position: absolute;
-            top: 0; left: 0; right: 0;
+            flex-shrink: 0;
             height: 50px;
             padding: 0 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: rgba(12,24,18,0.95);
+            border-bottom: 1px solid #222;
             z-index: 100;
-            background: linear-gradient(to bottom, rgba(12,24,18,0.9), transparent);
-            pointer-events: none; /* Let clicks pass through to canvas where empty */
         }
+
+        .app-title { font-weight: 800; font-size: 16px; letter-spacing: 1px; }
+
+        /* --- LIST CONTAINER --- */
+        #main-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 15px;
+            padding-bottom: 100px; /* Space for FAB and Nav */
+            scroll-behavior: smooth;
+        }
+
+        /* --- TASK CARDS --- */
+        .task-card {
+            background: var(--node-bg);
+            border: 1px solid var(--node-border);
+            border-left: 4px solid #666; /* Default gray */
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            position: relative;
+            transition: transform 0.1s, box-shadow 0.2s, background 0.2s;
+        }
+
+        .task-card:active { transform: scale(0.98); }
         
-        #top-header > * { pointer-events: auto; }
+        /* Status Colors */
+        .task-card.status-urgent { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
+        .task-card.status-critical { border-left-color: var(--critical-path); }
+        .task-card.status-completed { border-left-color: var(--ready-color); opacity: 0.6; text-decoration: line-through; }
+        .task-card.status-blocked { border-style: dashed; opacity: 0.8; }
+        
+        /* Selection Highlight */
+        .task-card.highlight-pulse {
+            animation: highlightPulse 1.5s ease-out;
+            border-color: var(--accent);
+        }
 
-        .app-title { font-weight: 800; font-size: 16px; opacity: 0.7; letter-spacing: 1px; }
+        @keyframes highlightPulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); background: rgba(59, 130, 246, 0.2); }
+            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); background: var(--node-bg); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
 
-        /* Bottom Nav Bar */
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        .card-title { font-weight: 600; font-size: 15px; line-height: 1.4; color: #fff; }
+        .card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+
+        /* Badges */
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #333; color: #aaa; font-weight: 500; display: inline-flex; align-items: center; gap: 3px; }
+        .badge.urgent { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .badge.critical { background: rgba(255, 215, 0, 0.2); color: var(--critical-path); }
+        .badge.timer { background: #064e3b; color: #34d399; }
+        .badge.timer.running { background: #7f1d1d; color: #fca5a5; animation: pulse 2s infinite; }
+        
+        /* Dependencies Link Area */
+        .card-links {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 11px;
+            color: #888;
+        }
+        .link-tag {
+            color: var(--accent);
+            text-decoration: none;
+            cursor: pointer;
+            margin-right: 8px;
+            display: inline-block;
+        }
+
+        /* --- BOTTOM NAV & FAB --- */
         #bottom-nav {
             position: absolute;
             bottom: 0; left: 0; right: 0;
@@ -88,188 +152,65 @@
         }
 
         .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            color: #888;
-            background: none;
-            border: none;
-            gap: 4px;
-            width: 60px;
-            cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 10px; color: #888; background: none; border: none; gap: 4px; width: 60px; cursor: pointer;
         }
-        
-        .nav-item.active { color: var(--accent); }
         .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
 
         .nav-fab {
-            width: 48px; height: 48px;
-            border-radius: 50%;
-            background: var(--accent);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: -20px; /* Pop out effect */
-            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
-            border: 2px solid #111;
+            width: 50px; height: 50px; border-radius: 50%; background: var(--accent); color: white;
+            display: flex; align-items: center; justify-content: center; margin-top: -20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 3px solid var(--bg-color);
         }
         .nav-fab svg { width: 28px; height: 28px; fill: white; }
 
-        /* --- BOTTOM SHEET INSPECTOR --- */
+        /* --- INSPECTOR SHEET --- */
         #inspector {
-            position: fixed;
-            left: 0; right: 0; bottom: 0;
-            height: 75vh; /* Takes up 75% of screen */
-            background: var(--panel-bg);
-            border-top-left-radius: 20px;
-            border-top-right-radius: 20px;
-            z-index: 300;
-            transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
-            border-top: 1px solid #333;
+            position: fixed; left: 0; right: 0; bottom: 0; height: 80vh;
+            background: var(--panel-bg); border-top-left-radius: 20px; border-top-right-radius: 20px;
+            z-index: 300; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+            display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
+            border-top: 1px solid #444;
         }
-
         #inspector.visible { transform: translateY(0); }
-        
-        .drag-handle {
-            width: 40px; height: 5px; background: #444;
-            border-radius: 3px; margin: 10px auto; flex-shrink: 0;
-        }
+        .drag-handle { width: 40px; height: 5px; background: #555; border-radius: 3px; margin: 12px auto 0; flex-shrink: 0; }
 
-        /* --- FULL SCREEN OVERLAYS (Goals, Notes, etc) --- */
+        /* --- OVERLAYS --- */
         .fullscreen-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-color);
-            z-index: 400;
-            display: flex; flex-direction: column;
-            transform: translateY(100%);
-            transition: transform 0.3s ease;
+            background: var(--bg-color); z-index: 400; display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.3s ease;
         }
         .fullscreen-overlay.visible { transform: translateY(0); }
-
-        .overlay-header {
-            padding: 15px;
-            display: flex; align-items: center; justify-content: space-between;
-            background: #1a1a1a;
-            border-bottom: 1px solid #333;
-            height: 60px;
-            flex-shrink: 0;
-            width: 100%; /* Ensure full width */
-        }
+        .overlay-header { padding: 15px; display: flex; align-items: center; justify-content: space-between; background: #151515; border-bottom: 1px solid #333; height: 60px; flex-shrink: 0; }
         .overlay-title { font-weight: bold; font-size: 18px; }
         .close-btn { background: none; border: none; font-size: 24px; color: #888; padding: 10px; }
 
-        /* --- MAIN CANVAS --- */
-        #graph-container {
-            flex-grow: 1;
-            position: relative;
-            overflow: hidden;
-            touch-action: none;
-            width: 100%; height: 100%;
-        }
-        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-        path { fill: none; stroke-width: 2; transition: stroke 0.3s; }
-        path.soft { stroke-dasharray: 5, 5; }
-        path.critical { stroke: var(--critical-path) !important; stroke-width: 3; }
-
-        /* --- NODES --- */
-        .node { 
-            position: absolute; width: 160px; /* Slightly smaller for mobile */
-            background: var(--node-bg); border: 1px solid var(--node-border); 
-            border-radius: 8px; padding: 10px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5); 
-            z-index: 10; display: flex; flex-direction: column; gap: 4px;
-        }
-        .node.selected { border: 2px solid var(--node-selected); box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
-        .node.critical { border-color: var(--critical-path); }
-        .node.critical-urgent { border-color: #ff4d4d; box-shadow: 0 0 10px rgba(255, 77, 77, 0.3); }
-        .node.blocked { opacity: 0.6; border-style: dashed; }
-        .node.completed { background: #1e3a2f; border-color: #10b981; opacity: 0.7; }
-        
-        .node-header { font-size: 13px; font-weight: 600; line-height: 1.3; }
-        .node-meta { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
-        
-        .badge { padding: 2px 4px; border-radius: 3px; font-size: 9px; background: #333; color: #aaa; }
-        .badge.urgent-badge { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-        .badge.critical-badge { background: rgba(255, 215, 0, 0.2); color: var(--critical-path); }
-        .badge.time-badge { background: #374151; color: #fff; font-family: monospace; }
-        .badge.time-badge.active { background: #991b1b; animation: pulse 2s infinite; }
-
-        .progress-container { height: 3px; background: #444; margin-top: 4px; border-radius: 2px; }
-        .progress-bar { height: 100%; background: var(--ready-color); width: 0%; transition: width 0.3s; }
-
-        /* --- FORMS & LISTS --- */
+        /* --- FORM ELEMENTS --- */
         .panel-content { padding: 20px; overflow-y: auto; height: 100%; padding-bottom: 80px; }
         .form-group { margin-bottom: 20px; }
         label { display: block; font-size: 11px; margin-bottom: 6px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        input, textarea, select { 
-            width: 100%; background: #222; border: 1px solid #444; 
-            color: #fff; padding: 12px; border-radius: 8px; 
-            font-size: 16px; /* Prevents iOS zoom */
-            font-family: inherit; 
-        }
-        .btn { 
-            background: #2a2a2a; border: 1px solid #444; color: #ddd; 
-            padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
-            width: 100%; display: block; text-align: center; margin-bottom: 5px;
-            cursor: pointer;
-        }
-        .btn:active { transform: scale(0.98); }
+        input, textarea, select { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; font-size: 16px; font-family: inherit; }
+        .btn { background: #2a2a2a; border: 1px solid #444; color: #ddd; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; width: 100%; display: block; text-align: center; margin-bottom: 5px; cursor: pointer; }
         .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
         .btn-danger { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; }
-        
-        /* --- MENU OVERLAY (Settings) --- */
-        /* Fixed: Removed conflicting centering that broke layout */
-        #menu-overlay { 
-            background: rgba(0,0,0,0.95); 
-        }
-        
-        #menu-overlay .panel-content {
-            display: flex; 
-            flex-direction: column; 
-            gap: 15px; 
-            padding: 30px; 
-            text-align: center;
-        }
 
-        /* --- UTILS --- */
         .hidden { display: none !important; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-        /* Inbox List Items (Fixed Truncation) */
-        .inbox-item { 
-            background: #222; padding: 12px; margin-bottom: 8px; border-radius: 6px; 
-            display: flex; justify-content: space-between; align-items: center; gap: 10px;
-        }
-        .inbox-item span:first-child {
-            flex: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-width: 0;
-        }
+        /* List Specifics */
+        .inbox-item { background: #222; padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .inbox-item span:first-child { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
         .inbox-actions { display: flex; gap: 15px; font-size: 18px; flex-shrink: 0; }
-
-        /* Goal Tree (Improved Tap Targets) */
+        
         .goal-node { margin-bottom: 8px; }
         .goal-content { background: #222; padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; }
         .goal-text { border: none; background: transparent; color: white; font-size: 14px; flex-grow: 1; margin-left: 10px; }
         .goal-children { margin-left: 15px; border-left: 2px solid #333; padding-left: 10px; margin-top: 5px; }
 
-        /* Notification Toast */
-        #notification {
-            position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
-            background: var(--accent); color: white; padding: 8px 16px;
-            border-radius: 20px; font-size: 12px; opacity: 0; 
-            pointer-events: none; z-index: 1000; transition: opacity 0.3s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
+        #menu-overlay { background: rgba(0,0,0,0.95); }
+        #menu-overlay .panel-content { display: flex; flex-direction: column; gap: 15px; padding: 30px; text-align: center; }
+        #notification { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; opacity: 0; pointer-events: none; z-index: 1000; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 
     </style>
 </head>
@@ -280,11 +221,9 @@
         <div class="app-title">Urgency Flow</div>
         <div style="display: flex; align-items: center; gap: 5px;">
             <button class="nav-item" onclick="toggleMenu()" style="width: auto; padding: 10px;">
-                <!-- Sync/Cloud Icon -->
                 <svg viewBox="0 0 24 24" style="fill: var(--accent);"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
             </button>
             <button class="nav-item" onclick="toggleMenu()" style="width: auto; padding: 10px;">
-                <!-- Settings/Menu Icon (Visible White Gear) -->
                 <svg viewBox="0 0 24 24" style="fill: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">
                     <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.58 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
                 </svg>
@@ -292,19 +231,16 @@
         </div>
     </div>
 
-    <!-- CANVAS -->
-    <div id="graph-container">
-        <div id="transform-layer" style="transform-origin: 0 0; position: absolute; top:0; left:0; width:100%; height:100%;">
-            <svg id="connections"></svg>
-            <div id="nodes-layer"></div>
-        </div>
+    <!-- MAIN TASK LIST -->
+    <div id="main-container">
+        <!-- Content injected by JS -->
     </div>
 
     <!-- BOTTOM NAV -->
     <div id="bottom-nav">
-        <button class="nav-item" onclick="fitView()">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-            <span>Focus</span>
+        <button class="nav-item" onclick="scrollToTop()">
+            <svg viewBox="0 0 24 24"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>
+            <span>Top</span>
         </button>
         <button class="nav-item" onclick="toggleGoals()">
             <svg viewBox="0 0 24 24"><path d="M19.03 3.56c-1.67-1.39-3.74-2.3-6.03-2.51v2.01c1.73.19 3.31.88 4.61 1.92l1.42-1.42zM11 3.06V1.05c-2.29.2-4.36 1.12-6.03 2.51l1.42 1.42C7.69 3.94 9.27 3.25 11 3.06zM4.98 6.39L3.56 4.97C2.17 6.64 1.26 8.71 1.05 11h2.01c.19-1.73.88-3.31 1.92-4.61zM20.94 11h2.01c-.21-2.29-1.12-4.36-2.51-6.03l-1.42 1.42c1.04 1.3 1.73 2.88 1.92 4.61zM7 12l5 5 5-5H7z"/></svg>
@@ -328,19 +264,12 @@
     <!-- INSPECTOR SHEET -->
     <div id="inspector">
         <div class="drag-handle" onclick="deselectNode()"></div>
-        <div class="panel-content" id="insp-content">
-            <!-- Dynamic Content -->
-        </div>
+        <div class="panel-content" id="insp-content"></div>
     </div>
 
     <!-- FULL SCREEN OVERLAYS -->
-    
-    <!-- Goals Overlay -->
     <div id="goals-overlay" class="fullscreen-overlay">
-        <div class="overlay-header">
-            <span class="overlay-title">🎯 Life Goals</span>
-            <button class="close-btn" onclick="toggleGoals()">✕</button>
-        </div>
+        <div class="overlay-header"><span class="overlay-title">🎯 Life Goals</span><button class="close-btn" onclick="toggleGoals()">✕</button></div>
         <div class="panel-content">
              <div class="year-nav" style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:center;">
                 <button class="btn" style="width:auto" onclick="changeGoalYear(-1)">&lt;</button>
@@ -355,12 +284,8 @@
         </div>
     </div>
 
-    <!-- Inbox Overlay -->
     <div id="inbox-overlay" class="fullscreen-overlay">
-        <div class="overlay-header">
-            <span class="overlay-title">📥 Inbox / Backlog</span>
-            <button class="close-btn" onclick="toggleInbox()">✕</button>
-        </div>
+        <div class="overlay-header"><span class="overlay-title">📥 Inbox / Backlog</span><button class="close-btn" onclick="toggleInbox()">✕</button></div>
         <div class="panel-content">
             <div style="display:flex; gap:10px; margin-bottom:15px;">
                 <input type="text" id="inbox-input" placeholder="Quick task..." onkeypress="if(event.key==='Enter') addToInbox()">
@@ -370,23 +295,14 @@
         </div>
     </div>
 
-    <!-- Notes Overlay -->
     <div id="notes-overlay" class="fullscreen-overlay">
-        <div class="overlay-header">
-            <span class="overlay-title">📝 Notes</span>
-            <button class="close-btn" onclick="toggleNotesPanel()">✕</button>
-        </div>
+        <div class="overlay-header"><span class="overlay-title">📝 Notes</span><button class="close-btn" onclick="toggleNotesPanel()">✕</button></div>
         <div class="panel-content">
             <button class="btn btn-primary" onclick="createNewNote()">+ New Independent Note</button>
             <div id="notes-list-container" style="margin-top:15px;"></div>
         </div>
-        <!-- Simple Modal Editor inside Overlay -->
         <div id="note-editor" class="fullscreen-overlay" style="z-index: 500;">
-            <div class="overlay-header">
-                <button class="close-btn" onclick="closeNoteEditor()">← Back</button>
-                <span class="overlay-title">Edit Note</span>
-                <button class="btn btn-danger" style="width:auto; padding:5px 10px;" onclick="deleteCurrentNote()">Delete</button>
-            </div>
+            <div class="overlay-header"><button class="close-btn" onclick="closeNoteEditor()">← Back</button><span class="overlay-title">Edit Note</span><button class="btn btn-danger" style="width:auto; padding:5px 10px;" onclick="deleteCurrentNote()">Delete</button></div>
             <div style="display:flex; flex-direction:column; height:100%; padding:15px; gap:10px;">
                 <input type="text" id="note-title-input" placeholder="Title" oninput="saveCurrentNote()">
                 <textarea id="note-body-input" style="flex-grow:1; resize:none;" placeholder="Start typing..." oninput="saveCurrentNote()"></textarea>
@@ -394,49 +310,31 @@
         </div>
     </div>
 
-    <!-- Menu Overlay -->
     <div id="menu-overlay" class="fullscreen-overlay">
-        <div class="overlay-header">
-            <span class="overlay-title">⚙️ Menu</span>
-            <button class="close-btn" onclick="toggleMenu()">✕</button>
-        </div>
+        <div class="overlay-header"><span class="overlay-title">⚙️ Menu</span><button class="close-btn" onclick="toggleMenu()">✕</button></div>
         <div class="panel-content">
             <button class="btn" onclick="toggleArchivePanel()">🗄️ View Archive</button>
             <button class="btn" onclick="toggleHeatmap()">📅 Activity Heatmap</button>
             <hr style="border-color:#333; width:100%; margin:20px 0;">
-            
             <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:15px;">
-                <label>GitHub Sync (Private Gist)</label>
+                <label>GitHub Sync</label>
                 <input type="password" id="github-token" placeholder="Token" onchange="saveGithubToken(this.value)" style="margin-bottom:10px;">
                 <input type="text" id="gist-id" placeholder="Gist ID" readonly style="margin-bottom:10px; opacity:0.5;">
-                <div style="display:flex; gap:10px;">
-                    <button class="btn" onclick="pullFromGist()">⬇ Pull</button>
-                    <button class="btn btn-primary" onclick="pushToGist()">⬆ Push</button>
-                </div>
-                <div id="sync-status" style="margin-top:5px; font-size:11px; text-align:center;"></div>
+                <div style="display:flex; gap:10px;"><button class="btn" onclick="pullFromGist()">⬇ Pull</button><button class="btn btn-primary" onclick="pushToGist()">⬆ Push</button></div>
             </div>
-
             <button class="btn" onclick="saveData(true)">💾 Export JSON</button>
             <button class="btn" onclick="document.getElementById('file-input').click()">📂 Import JSON</button>
             <button class="btn btn-danger" onclick="clearData()">⚠️ Reset App</button>
         </div>
     </div>
 
-    <!-- Archive Overlay -->
     <div id="archive-overlay" class="fullscreen-overlay">
-        <div class="overlay-header">
-            <span class="overlay-title">🗄️ Archive</span>
-            <button class="close-btn" onclick="toggleArchivePanel()">✕</button>
-        </div>
+        <div class="overlay-header"><span class="overlay-title">🗄️ Archive</span><button class="close-btn" onclick="toggleArchivePanel()">✕</button></div>
         <div class="panel-content" id="archive-list-container"></div>
     </div>
     
-    <!-- Heatmap Overlay -->
     <div id="heatmap-overlay" class="fullscreen-overlay">
-        <div class="overlay-header">
-            <span class="overlay-title">Activity</span>
-            <button class="close-btn" onclick="toggleHeatmap()">✕</button>
-        </div>
+        <div class="overlay-header"><span class="overlay-title">Activity</span><button class="close-btn" onclick="toggleHeatmap()">✕</button></div>
         <div class="panel-content">
              <div class="heatmap-controls" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <button class="btn" style="width:auto" onclick="changeHeatmapYear(-1)">&lt;</button>
@@ -447,10 +345,7 @@
         </div>
     </div>
 
-    <!-- Hidden Input -->
     <input type="file" id="file-input" style="display:none" onchange="loadFile(this)">
-    
-    <!-- Notification -->
     <div id="notification">State Saved</div>
 
 <script>
@@ -463,27 +358,13 @@
     let currentGoalYear = new Date().getFullYear();
     let selectedNodeId = null; 
     let currentEditingNoteId = null;
-    let scale = 1;
-    let panX = 0;
-    let panY = 0;
+    let currentHeatmapYear = new Date().getFullYear();
     
     // Sync State
     let githubToken = '';
     let gistId = '';
     const GIST_FILENAME = 'urgency_flow_data.json';
     const ARCHIVE_THRESHOLD_MS = 15 * 24 * 60 * 60 * 1000; 
-    
-    // Interaction State
-    let isDragging = false;
-    let isPanning = false;
-    let dragStartX, dragStartY;
-    let draggedNodeId = null;
-    
-    // Touch Logic
-    let lastTouchX = 0, lastTouchY = 0;
-    let initialPinchDist = null;
-    let initialScale = 1;
-    let currentHeatmapYear = new Date().getFullYear();
 
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -497,18 +378,13 @@
         
         checkAutoArchive(); 
         updateCalculations();
-        
-        // Center view initially
-        panX = window.innerWidth / 2 - 100;
-        panY = window.innerHeight / 2 - 100;
-
         render(); 
-        setupInteractions();
+        
         setInterval(tickTimers, 1000);
         setInterval(checkAutoArchive, 60000); 
     });
 
-    // --- UI TOGGLERS (Adapted for Mobile Overlays) ---
+    // --- UI TOGGLERS ---
     function toggleMenu() { toggleOverlay('menu-overlay'); }
     function toggleGoals() { renderGoals(); toggleOverlay('goals-overlay'); }
     function toggleInbox() { renderInbox(); toggleOverlay('inbox-overlay'); }
@@ -519,18 +395,32 @@
     function toggleOverlay(id) {
         const el = document.getElementById(id);
         const isVisible = el.classList.contains('visible');
-        // Close others
         document.querySelectorAll('.fullscreen-overlay').forEach(o => o.classList.remove('visible'));
-        // Toggle target
         if(!isVisible) el.classList.add('visible');
     }
+    
+    function scrollToTop() {
+        document.getElementById('main-container').scrollTop = 0;
+    }
+    
+    function highlightNode(id) {
+        const el = document.getElementById('card-' + id);
+        if (el) {
+            // Close inspector if open to see the jump
+            document.getElementById('inspector').classList.remove('visible');
+            el.scrollIntoView({behavior: 'smooth', block: 'center'});
+            el.classList.add('highlight-pulse');
+            setTimeout(() => el.classList.remove('highlight-pulse'), 1500);
+        } else {
+            showNotification("Task not found or archived");
+        }
+    }
 
-    // --- CORE DATA FUNCTIONS (Preserved Logic) ---
-    function createNode(x, y, title = 'New Task') {
+    // --- DATA FUNCTIONS ---
+    function createNode(title = 'New Task') {
         return {
             id: 'task_' + Date.now() + Math.random().toString(36).substr(2, 5),
-            title: title, description: '', x: x || 100, y: y || 100,
-            duration: 1, dueDate: '', syncDurationDate: true,
+            title: title, description: '', duration: 1, dueDate: '', syncDurationDate: true,
             completed: false, completedDate: null, isManualUrgent: false,
             dependencies: [], subtasks: [], activeTimerStart: null, timeLogs: []
         };
@@ -545,180 +435,233 @@
     }
 
     function initDemoData() {
-        nodes = [{ id: '1', title: 'Tap to Edit', x: 0, y: 0, completed: false, duration: 1, dueDate: '', syncDurationDate: true, isManualUrgent: false, dependencies: [], subtasks: [], activeTimerStart: null, timeLogs: [] }];
+        nodes = [{ id: '1', title: 'Start Here: Tap to Edit', completed: false, duration: 1, dueDate: '', syncDurationDate: true, isManualUrgent: false, dependencies: [], subtasks: [], activeTimerStart: null, timeLogs: [] }];
         saveToStorage();
     }
 
-    // --- RENDER GRAPH (Mobile Adjusted) ---
+    // --- RENDER LIST ---
     function render() {
-        const container = document.getElementById('nodes-layer'); const svg = document.getElementById('connections');
-        container.innerHTML = ''; svg.innerHTML = '';
+        const container = document.getElementById('main-container');
+        container.innerHTML = '';
         
-        nodes.forEach(node => {
-            node.dependencies.forEach(dep => {
-                const parent = nodes.find(n => n.id === dep.id); if (!parent) return; 
-                const isCritical = node._isCritical && parent._isCritical && dep.type === 'hard' && !parent.completed;
-                const isUrgentPath = node._isUrgent && parent._isUrgent;
-                let color = '#444'; 
-                if (dep.type === 'soft') color = 'var(--soft-dep-color)'; 
-                if (isUrgentPath) color = '#ff4d4d'; else if (isCritical) color = 'var(--critical-path)';
-                const width = (isCritical || isUrgentPath) ? 3 : 2;
-                
-                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                // Adjusted bezier anchors for mobile node size (width 160)
-                const startX = parent.x + 160; const startY = parent.y + 40; 
-                const endX = node.x; const endY = node.y + 40;
-                const d = `M ${startX} ${startY} C ${startX + 30} ${startY}, ${endX - 30} ${endY}, ${endX} ${endY}`;
-                path.setAttribute('d', d); path.setAttribute('stroke', color); path.setAttribute('stroke-width', width);
-                if (dep.type === 'soft') path.classList.add('soft'); if (isCritical || isUrgentPath) path.classList.add('critical');
-                svg.appendChild(path);
-            });
-        });
-        
-        nodes.forEach(node => {
-            const el = document.createElement('div'); el.className = 'node'; 
-            el.style.left = node.x + 'px'; el.style.top = node.y + 'px'; 
+        // SORTING LOGIC: Urgent > Critical > Due Date > Normal
+        const sortedNodes = [...nodes].sort((a, b) => {
+            // 1. Completion (Completed at bottom)
+            if (a.completed !== b.completed) return a.completed ? 1 : -1;
             
-            if (node.id === selectedNodeId) el.classList.add('selected');
-            if (!node.completed) { 
-                if (node._isUrgent) el.classList.add('critical-urgent'); 
-                else if (node._isCritical) el.classList.add('critical'); 
-                if (node._isBlocked) el.classList.add('blocked'); 
-            } else { el.classList.add('completed'); }
+            // 2. Urgency (Red)
+            if (a._isUrgent !== b._isUrgent) return a._isUrgent ? -1 : 1;
+            
+            // 3. Critical Path (Gold)
+            if (a._isCritical !== b._isCritical) return a._isCritical ? -1 : 1;
+            
+            // 4. Due Date
+            if (a.dueDate && b.dueDate) return new Date(a.dueDate) - new Date(b.dueDate);
+            if (a.dueDate) return -1;
+            if (b.dueDate) return 1;
+            
+            return 0;
+        });
 
+        if (sortedNodes.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:50px; color:#666;">
+                <h3>No Active Tasks</h3>
+                <p>Tap the + button to start planning.</p>
+            </div>`;
+            return;
+        }
+        
+        sortedNodes.forEach(node => {
+            const el = document.createElement('div');
+            el.id = 'card-' + node.id;
+            el.className = 'task-card';
+            
+            // Status Class
+            if (node.completed) el.classList.add('status-completed');
+            else if (node._isUrgent) el.classList.add('status-urgent');
+            else if (node._isCritical) el.classList.add('status-critical');
+            else if (node._isBlocked) el.classList.add('status-blocked');
+
+            // Badges
             let badgesHtml = '';
             if (!node.completed) { 
-                if (node._isUrgent) badgesHtml += `<span class="badge urgent-badge">URGENT</span>`; 
-                else if (node._isCritical) badgesHtml += `<span class="badge critical-badge">CP</span>`; 
+                if (node._isUrgent) badgesHtml += `<span class="badge urgent">URGENT</span>`; 
+                else if (node._isCritical) badgesHtml += `<span class="badge critical">CRITICAL</span>`; 
             }
             
-            const totalTime = getTotalTime(node); const isActive = !!node.activeTimerStart;
-            if (totalTime > 0 || isActive) { badgesHtml += `<span class="badge time-badge ${isActive?'active':''}" data-node-id="${node.id}">${isActive ? '🔴' : '⏱'} ${formatTime(totalTime)}</span>`; }
+            const totalTime = getTotalTime(node);
+            if (totalTime > 0 || node.activeTimerStart) {
+                const isActive = !!node.activeTimerStart;
+                badgesHtml += `<span class="badge timer ${isActive?'running':''}" data-node-id="${node.id}">${isActive?'⏱':'⌛'} ${formatTime(totalTime)}</span>`;
+            }
             
             if (node.dueDate && !node.completed) { 
-                const due = new Date(node.dueDate); const today = new Date(); today.setHours(0,0,0,0);
-                const isOverdue = due < today; 
-                const dateStr = due.toLocaleDateString(undefined, {month:'numeric', day:'numeric'}); 
-                const style = isOverdue ? 'background:#ef4444; color:white;' : ''; 
-                badgesHtml += `<span class="badge" style="${style}">📅 ${dateStr}</span>`; 
+                const due = new Date(node.dueDate); 
+                const isOverdue = due < new Date().setHours(0,0,0,0);
+                const dateStr = due.toLocaleDateString(undefined, {month:'numeric', day:'numeric'});
+                badgesHtml += `<span class="badge" style="${isOverdue?'background:#7f1d1d;color:#fca5a5':''}">📅 ${dateStr}</span>`; 
             }
 
-            let icon = node.completed ? '✅' : (node._isBlocked ? '🔒' : '');
-            const totalSubs = node.subtasks.length; const doneSubs = node.subtasks.filter(s => s.done).length; 
+            // Progress Bar
+            const totalSubs = node.subtasks.length;
+            const doneSubs = node.subtasks.filter(s => s.done).length;
             const progress = totalSubs === 0 ? 0 : (doneSubs / totalSubs) * 100;
 
+            // Waiting For Links
+            let depLinks = '';
+            if (node.dependencies.length > 0) {
+                const depHtml = node.dependencies.map(d => {
+                    const p = nodes.find(n => n.id === d.id);
+                    return p ? `<span class="link-tag" onclick="event.stopPropagation(); highlightNode('${p.id}')">↩ ${p.title}</span>` : '';
+                }).join('');
+                if (depHtml) depLinks = `<div class="card-links">Waiting on: ${depHtml}</div>`;
+            }
+
             el.innerHTML = `
-                <div class="node-header">${icon} ${node.title}</div>
-                <div class="node-meta">${badgesHtml}</div>
+                <div class="card-header">
+                    <span class="card-title">${node.completed ? '✅ ' : ''}${node.title}</span>
+                </div>
+                <div class="card-meta">${badgesHtml}</div>
                 ${totalSubs > 0 ? `<div class="progress-container"><div class="progress-bar" style="width: ${progress}%"></div></div>` : ''}
+                ${depLinks}
             `;
             
-            // Touch Start for Drag
-            el.addEventListener('touchstart', (e) => startNodeDrag(e, node.id), {passive: false});
-            el.addEventListener('mousedown', (e) => startNodeDrag(e, node.id));
-            
+            el.onclick = () => selectNode(node.id);
             container.appendChild(el);
         });
-        
-        updateTransform();
     }
 
-    // --- INTERACTIONS (TOUCH & MOUSE) ---
-    function setupInteractions() {
-        const container = document.getElementById('graph-container');
+    // --- CORE LOGIC (Restored Full Urgency Propagation) ---
+    function updateCalculations() {
+        // Reset flags
+        nodes.forEach(n => { 
+            n._isBlocked = false; 
+            n._isReady = false; 
+            n._isCritical = false; 
+            n._isUrgent = false; 
+            n._isManualUrgentPath = false; // Internal flag for propagation
+            n._earliestStart = 0; 
+            n._earliestFinish = 0; 
+            n._latestFinish = Infinity; 
+        });
 
-        // Touch Panning & Pinching
-        container.addEventListener('touchstart', (e) => {
-            if (e.target === container || e.target.tagName === 'svg' || e.target.id === 'nodes-layer') {
-                if (e.touches.length === 1) {
-                    isPanning = true;
-                    lastTouchX = e.touches[0].clientX;
-                    lastTouchY = e.touches[0].clientY;
-                    deselectNode();
-                } else if (e.touches.length === 2) {
-                    // Pinch Zoom
-                    isPanning = false;
-                    initialPinchDist = getPinchDistance(e);
-                    initialScale = scale;
+        // 1. Forward Pass (Earliest Dates & Blocked Status)
+        let changed = true;
+        let iter = 0;
+        while(changed && iter < nodes.length + 2) {
+            changed = false;
+            nodes.forEach(n => {
+                if (n.completed) return;
+                
+                // Blocked Logic
+                const parents = n.dependencies.filter(d => d.type === 'hard').map(d => nodes.find(p => p.id === d.id)).filter(p => p);
+                if (parents.length > 0 && !parents.every(p => p.completed)) {
+                    n._isBlocked = true;
                 }
-            }
-        }, {passive: false});
 
-        container.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // Stop screen scroll
-            if (isDragging && draggedNodeId) {
-                const currentX = (e.touches[0].clientX - panX) / scale;
-                const currentY = (e.touches[0].clientY - panY) / scale;
-                const dx = currentX - dragStartX;
-                const dy = currentY - dragStartY;
-                const node = nodes.find(n => n.id === draggedNodeId);
-                if (node) { node.x += dx; node.y += dy; }
-                dragStartX = currentX; dragStartY = currentY;
-                render();
-            } else if (isPanning && e.touches.length === 1) {
-                const dx = e.touches[0].clientX - lastTouchX;
-                const dy = e.touches[0].clientY - lastTouchY;
-                panX += dx; panY += dy;
-                lastTouchX = e.touches[0].clientX;
-                lastTouchY = e.touches[0].clientY;
-                updateTransform();
-            } else if (e.touches.length === 2 && initialPinchDist) {
-                const dist = getPinchDistance(e);
-                const zoomFactor = dist / initialPinchDist;
-                scale = Math.min(Math.max(0.2, initialScale * zoomFactor), 3);
-                updateTransform();
-            }
-        }, {passive: false});
+                // Earliest Start/Finish
+                let maxPrevEF = 0;
+                n.dependencies.forEach(d => {
+                    const p = nodes.find(x => x.id === d.id);
+                    if (p && p._earliestFinish > maxPrevEF) maxPrevEF = p._earliestFinish;
+                });
+                
+                const dur = n.completed ? 0 : (n.duration || 1);
+                const newEF = maxPrevEF + dur;
+                if (n._earliestFinish !== newEF) {
+                    n._earliestFinish = newEF;
+                    changed = true;
+                }
+            });
+            iter++;
+        }
 
-        container.addEventListener('touchend', () => { 
-            if (isDragging) saveToStorage(); // Only save if dragging occurred
-            isDragging = false; 
-            isPanning = false; 
-            initialPinchDist = null; 
-            draggedNodeId = null; 
+        // 2. Backward Pass (Latest Dates & Slack)
+        const projectDuration = Math.max(...nodes.map(n => n._earliestFinish), 0);
+        changed = true;
+        iter = 0;
+        while(changed && iter < nodes.length + 2) {
+            changed = false;
+            nodes.forEach(n => {
+                const children = nodes.filter(c => c.dependencies.some(d => d.id === n.id));
+                let derivedLF = Infinity;
+                
+                if (children.length === 0) {
+                    derivedLF = projectDuration;
+                } else {
+                    derivedLF = Math.min(...children.map(c => {
+                        const cDur = c.completed ? 0 : (c.duration || 1);
+                        return c._latestFinish - cDur;
+                    }));
+                }
+
+                // Due Date Constraint
+                if (n.dueDate) {
+                    const daysUntilDue = Math.ceil((new Date(n.dueDate) - new Date().setHours(0,0,0,0)) / (86400000));
+                    if (daysUntilDue < derivedLF) derivedLF = daysUntilDue;
+                }
+
+                if (n._latestFinish !== derivedLF) {
+                    n._latestFinish = derivedLF;
+                    changed = true;
+                }
+            });
+            iter++;
+        }
+
+        // 3. Propagate Manual Urgency Downstream (Pre-calculation)
+        const propagateUrgency = (id) => { 
+            const parents = nodes.filter(p => nodes.find(child => child.id === id && child.dependencies.some(d => d.id === p.id)));
+            // Wait, we need to propagate UPSTREAM (If Child is Urgent, Parent must be Urgent to unblock it)
+            // Or Downstream? "Urgency" usually flows upstream: "I need C done, so B is urgent, so A is urgent".
+            // Implementation: If a node is marked Urgent, all its dependencies become Urgent.
+            const deps = nodes.find(n => n.id === id).dependencies;
+            deps.forEach(d => {
+                const parent = nodes.find(p => p.id === d.id);
+                if (parent && !parent._isManualUrgentPath) {
+                    parent._isManualUrgentPath = true;
+                    propagateUrgency(parent.id);
+                }
+            });
+        };
+
+        nodes.forEach(n => {
+            if (n.isManualUrgent) {
+                n._isManualUrgentPath = true;
+                propagateUrgency(n.id);
+            }
         });
 
-        // Mouse Fallbacks
-        container.addEventListener('mousedown', (e) => {
-             if (e.target === container || e.target.tagName === 'svg' || e.target.id === 'nodes-layer') {
-                isPanning = true; dragStartX = e.clientX - panX; dragStartY = e.clientY - panY; deselectNode();
-             }
-        });
-        window.addEventListener('mousemove', (e) => {
-            if (isPanning) { panX = e.clientX - dragStartX; panY = e.clientY - dragStartY; updateTransform(); }
-            if (isDragging && draggedNodeId) {
-                const currentX = (e.clientX - panX) / scale;
-                const currentY = (e.clientY - panY) / scale;
-                const dx = currentX - dragStartX; const dy = currentY - dragStartY;
-                const node = nodes.find(n => n.id === draggedNodeId);
-                if(node) { node.x += dx; node.y += dy; }
-                dragStartX = currentX; dragStartY = currentY;
-                render();
+        // 4. Final Status Determination
+        nodes.forEach(n => {
+            if (n.completed) return;
+
+            const slack = n._latestFinish - n._earliestFinish;
+
+            if (n._isManualUrgentPath) {
+                n._isUrgent = true;
+                n._isCritical = true;
+            } else if (slack < 0) {
+                // Negative slack means we are behind schedule -> Urgent
+                n._isUrgent = true;
+                n._isCritical = true;
+                // Also propagate this upstream!
+                propagateUrgency(n.id);
+            } else if (slack === 0) {
+                n._isCritical = true;
             }
         });
-        window.addEventListener('mouseup', () => { if(isDragging) saveToStorage(); isDragging = false; isPanning = false; draggedNodeId = null; });
-        container.addEventListener('wheel', (e) => { e.preventDefault(); const delta = -e.deltaY; scale = Math.min(Math.max(0.2, scale + (delta * 0.001)), 3); updateTransform(); }, {passive: false});
-    }
-
-    function startNodeDrag(e, id) {
-        e.stopPropagation();
-        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-        const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
         
-        isDragging = true; draggedNodeId = id;
-        dragStartX = (clientX - panX) / scale;
-        dragStartY = (clientY - panY) / scale;
-        selectNode(id);
+        // Re-run loop one last time to catch propagation from slack < 0
+        nodes.forEach(n => {
+            if (n.completed) return;
+            if (n._isManualUrgentPath) n._isUrgent = true;
+        });
     }
 
-    function getPinchDistance(e) { return Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
-    function updateTransform() { document.getElementById('transform-layer').style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`; }
-    
     // --- NODE OPERATIONS ---
     function addNode() { 
-        const worldX = (window.innerWidth/2 - panX) / scale - 80; 
-        const worldY = (window.innerHeight/2 - panY) / scale - 40; 
-        const n = createNode(worldX, worldY); 
+        const n = createNode(); 
         nodes.push(n); updateCalculations(); render(); selectNode(n.id); saveToStorage(); 
     }
 
@@ -732,17 +675,6 @@
     function deselectNode() { 
         selectedNodeId = null; 
         document.getElementById('inspector').classList.remove('visible');
-        render(); 
-    }
-
-    function fitView() {
-        if(nodes.length === 0) return;
-        let target = nodes.find(n => n.isManualUrgent && !n.completed) || nodes[0];
-        scale = 1;
-        panX = (window.innerWidth / 2) - (target.x + 80);
-        panY = (window.innerHeight / 2) - (target.y + 40);
-        updateTransform();
-        showNotification("Recalibrated View");
     }
 
     // --- INSPECTOR LOGIC ---
@@ -779,7 +711,7 @@
             </button>
 
             <div class="form-group" style="margin-top:20px;">
-                <label>Dependencies</label>
+                <label>Dependencies (Prerequisites)</label>
                 <select onchange="addDependency(this.value)" style="margin-bottom:10px;">
                     <option value="">+ Add Parent Task...</option>
                     ${nodes.filter(n => n.id !== node.id && !node.dependencies.some(d => d.id === n.id)).map(n => `<option value="${n.id}">${n.title}</option>`).join('')}
@@ -815,7 +747,6 @@
         let node = nodes.find(n => n.id === selectedNodeId);
         if (node) {
             node[field] = value;
-            // Sync Logic
             if (node.syncDurationDate) {
                 const today = new Date(); today.setHours(0,0,0,0);
                 if (field === 'duration') { 
@@ -854,41 +785,44 @@
         }
     }
     
-    // --- GENERIC HELPERS (Same as original) ---
-    function updateCalculations() {
-        nodes.forEach(n => { n._isBlocked = false; n._isReady = false; n._isCritical = false; n._isUrgent = false; n._earliestFinish = 0; n._latestFinish = Infinity; });
-        // Blocked status
-        nodes.forEach(n => { if(n.completed) return; const parents = n.dependencies.filter(d=>d.type==='hard').map(d=>nodes.find(p=>p.id===d.id)).filter(p=>p); if(parents.length && !parents.every(p=>p.completed)) n._isBlocked = true; });
-        // Forward Pass
-        let changed = true, iter = 0;
-        while(changed && iter < nodes.length+2) { changed = false; nodes.forEach(n => { let maxEF = 0; n.dependencies.forEach(d=>{ const p = nodes.find(x=>x.id===d.id); if(p && p._earliestFinish > maxEF) maxEF = p._earliestFinish; }); const dur = n.completed?0:n.duration; if(n._earliestFinish !== maxEF + dur) { n._earliestFinish = maxEF+dur; changed=true; } }); iter++; }
-        // Backward Pass
-        const projDur = Math.max(...nodes.map(n=>n._earliestFinish), 0);
-        changed = true; iter = 0;
-        while(changed && iter < nodes.length+2) { changed=false; nodes.forEach(n => { const children = nodes.filter(c=>c.dependencies.some(d=>d.id===n.id)); let lf = Infinity; if(!children.length) lf = projDur; else lf = Math.min(...children.map(c=>c._latestFinish - (c.completed?0:c.duration))); if(n.dueDate) { const d = Math.ceil((new Date(n.dueDate)-new Date().setHours(0,0,0,0))/(86400000)); if(d < lf) lf = d; } if(n._latestFinish !== lf) { n._latestFinish = lf; changed=true; } }); iter++; }
-        // Criticality
-        nodes.forEach(n => { if(!n.completed) { if(n.isManualUrgent) n._isUrgent=true; else if(n._latestFinish - n._earliestFinish <= 0) n._isCritical=true; }});
-    }
-
     function saveGithubToken(val) { githubToken = val.trim(); saveToStorage(); showNotification('Token saved locally.'); }
 
-    function saveToStorage() { localStorage.setItem('urgencyFlowData', JSON.stringify({ nodes, archivedNodes, inbox, lifeGoals, notes, githubToken, gistId })); showNotification("Saved"); }
+    function saveToStorage() { localStorage.setItem('urgencyFlowData', JSON.stringify({ nodes, archivedNodes, inbox, lifeGoals, notes, githubToken, gistId })); }
     function loadFromStorage() { 
         const d = JSON.parse(localStorage.getItem('urgencyFlowData')); 
         if(d) { nodes = d.nodes||[]; inbox = d.inbox||[]; lifeGoals = d.lifeGoals||[]; notes = d.notes||[]; archivedNodes = d.archivedNodes||[]; githubToken = d.githubToken||''; gistId = d.gistId||''; }
     }
     function showNotification(msg) { const n = document.getElementById('notification'); n.innerText = msg; n.style.opacity = '1'; setTimeout(() => n.style.opacity = '0', 1500); }
     
-    // --- ADDITIONAL LIST RENDERERS ---
+    // --- LIST RENDERERS ---
     function renderInbox() {
         const div = document.getElementById('inbox-list'); div.innerHTML = '';
         inbox.forEach((item, idx) => {
             div.innerHTML += `<div class="inbox-item"><span>${item.title}</span><div class="inbox-actions"><span onclick="promoteInboxTask(${idx})">⬆</span><span onclick="promoteInboxToGoal(${idx})">🎯</span><span onclick="deleteInboxTask(${idx})" style="color:#ef4444">✕</span></div></div>`;
         });
     }
+
+    // --- ADDED MISSING FUNCTIONS ---
+    function changeGoalYear(d) {
+        currentGoalYear += d;
+        document.getElementById('goals-year-display').innerText = currentGoalYear;
+        renderGoals();
+    }
+
+    function addToInbox() {
+        const input = document.getElementById('inbox-input');
+        const txt = input.value.trim();
+        if(txt) {
+            inbox.push({id: 'inbox_'+Date.now(), title: txt});
+            input.value = '';
+            renderInbox();
+            saveToStorage();
+        }
+    }
+
     function promoteInboxTask(idx) { 
         const item = inbox[idx]; inbox.splice(idx, 1); 
-        nodes.push(createNode((window.innerWidth/2-panX)/scale, (window.innerHeight/2-panY)/scale, item.title));
+        nodes.push(createNode(item.title));
         saveToStorage(); renderInbox(); render(); showNotification("Task promoted");
     }
     function promoteInboxToGoal(idx) { 
@@ -898,7 +832,6 @@
     }
     function deleteInboxTask(idx) { inbox.splice(idx,1); saveToStorage(); renderInbox(); }
     
-    // --- GOALS, NOTES, ARCHIVE WRAPPERS ---
     function renderGoals() {
         const c = document.getElementById('goal-tree-container'); c.innerHTML = '';
         const goals = lifeGoals[currentGoalYear] || [];
@@ -997,7 +930,7 @@
     }
     function tickTimers() {
         nodes.forEach(n => { if(n.activeTimerStart) {
-             const badge = document.querySelector(`.time-badge[data-node-id="${n.id}"]`);
+             const badge = document.querySelector(`.badge.timer[data-node-id="${n.id}"]`);
              if(badge) badge.innerHTML = `🔴 ${formatTime(getTotalTime(n))}`;
         }});
     }
@@ -1087,6 +1020,22 @@
 
     function saveData(dl) { const d = JSON.stringify({nodes, archivedNodes, inbox, lifeGoals, notes}); if(dl) { const b = new Blob([d],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='backup.json'; a.click(); } }
     function clearData() { if(confirm("Reset all data?")) { localStorage.clear(); location.reload(); } }
+    function loadFile(input) {
+        const file = input.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                if (parsed.nodes) nodes = parsed.nodes;
+                if (parsed.inbox) inbox = parsed.inbox;
+                if (parsed.lifeGoals) lifeGoals = parsed.lifeGoals;
+                if (parsed.notes) notes = parsed.notes;
+                if (parsed.archivedNodes) archivedNodes = parsed.archivedNodes;
+                updateCalculations(); render(); renderInbox(); renderGoals(); saveToStorage();
+                showNotification("File Loaded");
+            } catch (err) { alert("Error parsing JSON"); }
+        }; reader.readAsText(file);
+    }
 
 </script>
 </body>
