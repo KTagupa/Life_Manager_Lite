@@ -73,8 +73,9 @@
             flex-grow: 1;
             overflow-y: auto;
             padding: 15px;
-            padding-bottom: 100px; /* Space for FAB and Nav */
+            padding-bottom: 60vh; /* Massive space for easy clicking out */
             scroll-behavior: smooth;
+            cursor: pointer; /* Indicates clickable background */
         }
 
         /* --- TASK CARDS --- */
@@ -87,6 +88,7 @@
             margin-bottom: 12px;
             position: relative;
             transition: transform 0.1s, box-shadow 0.2s, background 0.2s;
+            cursor: default; /* Reset cursor inside card */
         }
 
         .task-card:active { transform: scale(0.98); }
@@ -216,8 +218,8 @@
 </head>
 <body>
 
-    <!-- TOP HEADER -->
-    <div id="top-header">
+    <!-- TOP HEADER (Added onclick deselect) -->
+    <div id="top-header" onclick="deselectNode()">
         <div class="app-title">Urgency Flow</div>
         <div style="display: flex; align-items: center; gap: 5px;">
             <button class="nav-item" onclick="toggleMenu()" style="width: auto; padding: 10px;">
@@ -232,7 +234,7 @@
     </div>
 
     <!-- MAIN TASK LIST -->
-    <div id="main-container">
+    <div id="main-container" onclick="deselectNode()">
         <!-- Content injected by JS -->
     </div>
 
@@ -526,7 +528,7 @@
                 ${depLinks}
             `;
             
-            el.onclick = () => selectNode(node.id);
+            el.onclick = (e) => { e.stopPropagation(); selectNode(node.id); };
             container.appendChild(el);
         });
     }
@@ -690,6 +692,11 @@
         panel.innerHTML = `
             ${isArchived ? '<div style="background:#444; color:#fff; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center;">🔒 Archived Task</div>' : ''}
             
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+                <span style="font-weight:bold;color:#888">Edit Task</span>
+                <button class="btn" style="width:auto;padding:5px 12px;background:#333;margin:0" onclick="deselectNode()">Done</button>
+            </div>
+
             <div class="form-group"><label>Title</label><input type="text" value="${node.title}" oninput="updateNodeField('title', this.value)"></div>
             
             <div style="display:flex; gap:10px; margin-bottom:15px;">
