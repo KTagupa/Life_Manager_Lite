@@ -62,7 +62,7 @@
             flex-grow: 1;
             overflow-y: auto;
             padding: 15px;
-            padding-bottom: 80px; /* Space for nav */
+            padding-bottom: 140px; /* Extra space for nav + active bar */
             scroll-behavior: smooth;
         }
 
@@ -109,6 +109,27 @@
         .agenda-row { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid #222; }
         .agenda-row:last-child { border-bottom: none; }
         .agenda-time { font-family: monospace; font-size: 12px; color: var(--text-muted); min-width: 50px; }
+
+        /* --- ACTIVE AGENDA BAR (Persistent) --- */
+        #active-agenda-bar {
+            position: fixed;
+            bottom: var(--nav-height); /* Sits exactly on top of nav */
+            left: 0; width: 100%;
+            background: rgba(16, 185, 129, 0.15); /* Greenish tint */
+            border-top: 1px solid var(--ready);
+            border-bottom: 1px solid #000;
+            backdrop-filter: blur(5px);
+            padding: 10px 15px;
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: space-between;
+            z-index: 95;
+            cursor: pointer;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.5);
+        }
+        #active-agenda-bar.visible { display: flex; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
         /* --- NAV BAR --- */
         nav {
@@ -226,6 +247,17 @@
         </div>
     </main>
 
+    <div id="active-agenda-bar">
+        <div style="display:flex; flex-direction:column;">
+            <span style="font-size:10px; color:var(--ready); font-weight:bold; letter-spacing:1px;">ON SCHEDULE NOW</span>
+            <span id="np-title" style="font-weight:600; font-size:14px; color:#fff;">Task Name</span>
+        </div>
+        <div style="text-align:right;">
+            <span id="np-time" style="font-family:monospace; color:var(--text-muted); font-size:12px;">0m left</span>
+            <div style="font-size:9px; color:#666">Tap to view</div>
+        </div>
+    </div>
+
     <nav>
         <button class="nav-item active" onclick="switchView('tasks')">
             <span class="nav-icon">⚡</span>
@@ -297,6 +329,10 @@
                 updateCalculations(); 
                 renderAll();
             }
+
+            // START THE TICKER FOR THE AGENDA BAR
+            checkActiveAgenda();
+            setInterval(checkActiveAgenda, 5000); // Check every 5 seconds
         });
 
         function loadLocal() {
@@ -310,7 +346,7 @@
             }
         }
 
-        // --- HABIT HELPERS (Desktop Logic Port) ---
+        // --- HABIT HELPERS ---
         function getHabitDateKey(offsetDays = 0) {
             const d = new Date();
             d.setDate(d.getDate() - offsetDays);
@@ -320,7 +356,7 @@
         function getHabitValue(habit, dateKey) {
             let val = habit.history ? habit.history[dateKey] : undefined;
             if (val === undefined) return 0;
-            if (val === true) return 1; // Legacy boolean
+            if (val === true) return 1;
             if (val === false) return 0;
             return val;
         }
@@ -386,6 +422,36 @@
             data.nodes.filter(n => n.isManualUrgent).forEach(n => {
                 n._isUrgent = true; propagate(n.id);
             });
+        }
+
+        // --- TICKER Logic for Persistent Bar ---
+        function checkActiveAgenda() {
+            const now = new Date();
+            if (!data.agenda) return;
+
+            // Find current slot
+            const slot = data.agenda.find(s => {
+                const start = new Date(s.start);
+                const end = new Date(s.end);
+                return now >= start && now <= end;
+            });
+
+            const bar = document.getElementById('active-agenda-bar');
+
+            if(slot) {
+                const task = data.nodes.find(n => n.id === slot.taskId);
+                if(task) {
+                    document.getElementById('np-title').innerText = task.title;
+                    const timeLeft = Math.ceil((new Date(slot.end) - now) / 60000);
+                    document.getElementById('np-time').innerText = `${timeLeft}m left`;
+                    
+                    bar.classList.add('visible');
+                    bar.onclick = () => openTaskModal(task.id);
+                    return;
+                }
+            }
+            // If no slot active, hide it
+            bar.classList.remove('visible');
         }
 
         // --- RENDERING ---
@@ -500,7 +566,6 @@
             }
 
             data.habits.forEach(h => {
-                // Correct streak calculation
                 const streak = calculateStreak(h); 
                 
                 const todayKey = getHabitDateKey(0);
