@@ -2,1051 +2,645 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0c1812">
-    <title>Urgency Flow: List Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Urgency Flow: Mobile Viewer</title>
     <style>
         :root {
-            /* Calming Dark Green Theme */
             --bg-color: #0c1812;
-            --dots-color: #24342b;
-            --panel-bg: #15261d;
-            
-            /* Preserved Colors */
+            --card-bg: #15261d;
             --text-main: #e0e0e0;
             --text-muted: #a0a0a0;
             --accent: #3b82f6;
-            --accent-hover: #2563eb;
+            --critical: #ffd700;
+            --urgent: #ef4444;
+            --ready: #10b981;
             --border: #333;
-            
-            --node-bg: #1e1e1e;
-            --node-border: #333;
-            --node-selected: #3b82f6;
-            
-            /* Logic Colors */
-            --critical-path: #ffd700; /* Gold */
-            --ready-color: #10b981;   /* Green */
-            --blocked-color: #ef4444; /* Red */
-            --soft-dep-color: #666;
-
-            /* Mobile Specifics */
             --nav-height: 60px;
-            --safe-area-bottom: env(safe-area-inset-bottom);
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
-            background-image: radial-gradient(var(--dots-color) 1px, transparent 1px);
-            background-size: 20px 20px;
             color: var(--text-main);
-            overflow: hidden;
             height: 100vh;
-            height: 100dvh;
-            width: 100vw;
             display: flex;
             flex-direction: column;
-            touch-action: pan-y; /* Allow vertical scroll */
+            overflow: hidden;
         }
 
-        /* --- MOBILE LAYOUT --- */
-        
-        #top-header {
-            flex-shrink: 0;
-            height: 50px;
-            padding: 0 15px;
+        /* --- HEADER --- */
+        header {
+            padding: 15px;
+            background: rgba(21, 38, 29, 0.95);
+            border-bottom: 1px solid var(--border);
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            background: rgba(12,24,18,0.95);
-            border-bottom: 1px solid #222;
-            z-index: 100;
+            gap: 10px;
+            z-index: 10;
         }
 
-        .app-title { font-weight: 800; font-size: 16px; letter-spacing: 1px; }
+        .search-bar {
+            flex-grow: 1;
+            background: #08100c;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 8px 15px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .search-bar:focus { outline: none; border-color: var(--accent); }
 
-        /* --- LIST CONTAINER --- */
-        #main-container {
+        .settings-btn {
+            background: none; border: none; font-size: 20px; cursor: pointer;
+        }
+
+        /* --- MAIN CONTENT --- */
+        main {
             flex-grow: 1;
             overflow-y: auto;
             padding: 15px;
-            padding-bottom: 60vh; /* Massive space for easy clicking out */
+            padding-bottom: 80px; /* Space for nav */
             scroll-behavior: smooth;
-            cursor: pointer; /* Indicates clickable background */
         }
 
-        /* --- TASK CARDS --- */
-        .task-card {
-            background: var(--node-bg);
-            border: 1px solid var(--node-border);
-            border-left: 4px solid #666; /* Default gray */
+        .view-section { display: none; animation: fadeIn 0.2s; }
+        .view-section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- CARDS --- */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
             position: relative;
-            transition: transform 0.1s, box-shadow 0.2s, background 0.2s;
-            cursor: default; /* Reset cursor inside card */
         }
-
-        .task-card:active { transform: scale(0.98); }
         
-        /* Status Colors */
-        .task-card.status-urgent { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05); }
-        .task-card.status-critical { border-left-color: var(--critical-path); }
-        .task-card.status-completed { border-left-color: var(--ready-color); opacity: 0.6; text-decoration: line-through; }
-        .task-card.status-blocked { border-style: dashed; opacity: 0.8; }
+        /* Task Specifics */
+        .task-card { border-left: 4px solid #555; }
+        .task-card.critical { border-left-color: var(--critical); }
+        .task-card.urgent { border-left-color: var(--urgent); background: rgba(239, 68, 68, 0.05); }
+        .task-card.completed { opacity: 0.6; text-decoration: line-through; border-left-color: var(--ready); }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+        .card-title { font-weight: 600; font-size: 15px; line-height: 1.4; }
+        .card-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 8px; margin-top: 5px; align-items: center; }
         
-        /* Selection Highlight */
-        .task-card.highlight-pulse {
-            animation: highlightPulse 1.5s ease-out;
-            border-color: var(--accent);
-        }
+        .badge { padding: 2px 6px; border-radius: 4px; background: #222; font-size: 10px; font-weight: bold; }
+        .badge.urgent { color: var(--urgent); background: rgba(239, 68, 68, 0.15); }
+        .badge.due { color: var(--text-main); border: 1px solid #444; }
+        .badge.overdue { color: #fff; background: var(--urgent); border: none; }
 
-        @keyframes highlightPulse {
-            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); background: rgba(59, 130, 246, 0.2); }
-            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); background: var(--node-bg); }
-            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-        }
+        /* Habit Specifics */
+        .habit-row { display: flex; justify-content: space-between; align-items: center; }
+        .streak-flame { color: var(--accent); font-weight: bold; }
 
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-        .card-title { font-weight: 600; font-size: 15px; line-height: 1.4; color: #fff; }
-        .card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+        /* Agenda Specifics */
+        .agenda-row { display: flex; gap: 15px; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 10px; }
+        .agenda-time { font-family: monospace; font-size: 12px; color: var(--text-muted); min-width: 50px; }
 
-        /* Badges */
-        .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; background: #333; color: #aaa; font-weight: 500; display: inline-flex; align-items: center; gap: 3px; }
-        .badge.urgent { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-        .badge.critical { background: rgba(255, 215, 0, 0.2); color: var(--critical-path); }
-        .badge.timer { background: #064e3b; color: #34d399; }
-        .badge.timer.running { background: #7f1d1d; color: #fca5a5; animation: pulse 2s infinite; }
-        
-        /* Dependencies Link Area */
-        .card-links {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            font-size: 11px;
-            color: #888;
-        }
-        .link-tag {
-            color: var(--accent);
-            text-decoration: none;
-            cursor: pointer;
-            margin-right: 8px;
-            display: inline-block;
-        }
-
-        /* --- BOTTOM NAV & FAB --- */
-        #bottom-nav {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            height: calc(var(--nav-height) + var(--safe-area-bottom));
+        /* --- NAV BAR --- */
+        nav {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%;
+            height: var(--nav-height);
             background: #111;
-            border-top: 1px solid #333;
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: space-around;
-            align-items: flex-start;
-            padding-top: 8px;
-            z-index: 200;
-            padding-bottom: var(--safe-area-bottom);
+            align-items: center;
+            z-index: 100;
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .nav-item {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 10px; color: #888; background: none; border: none; gap: 4px; width: 60px; cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: #666;
+            font-size: 10px;
+            background: none;
+            border: none;
+            width: 100%;
+            padding: 8px 0;
         }
-        .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
 
-        .nav-fab {
-            width: 50px; height: 50px; border-radius: 50%; background: var(--accent); color: white;
-            display: flex; align-items: center; justify-content: center; margin-top: -20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 3px solid var(--bg-color);
-        }
-        .nav-fab svg { width: 28px; height: 28px; fill: white; }
+        .nav-item.active { color: var(--accent); }
+        .nav-icon { font-size: 18px; margin-bottom: 2px; }
 
-        /* --- INSPECTOR SHEET --- */
-        #inspector {
-            position: fixed; left: 0; right: 0; bottom: 0; height: 80vh;
-            background: var(--panel-bg); border-top-left-radius: 20px; border-top-right-radius: 20px;
-            z-index: 300; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
-            display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
-            border-top: 1px solid #444;
-        }
-        #inspector.visible { transform: translateY(0); }
-        .drag-handle { width: 40px; height: 5px; background: #555; border-radius: 3px; margin: 12px auto 0; flex-shrink: 0; }
-
-        /* --- OVERLAYS --- */
-        .fullscreen-overlay {
+        /* --- MODALS --- */
+        .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-color); z-index: 400; display: flex; flex-direction: column;
-            transform: translateY(100%); transition: transform 0.3s ease;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: flex-end; /* Sheet style */
         }
-        .fullscreen-overlay.visible { transform: translateY(0); }
-        .overlay-header { padding: 15px; display: flex; align-items: center; justify-content: space-between; background: #151515; border-bottom: 1px solid #333; height: 60px; flex-shrink: 0; }
-        .overlay-title { font-weight: bold; font-size: 18px; }
-        .close-btn { background: none; border: none; font-size: 24px; color: #888; padding: 10px; }
+        .modal-overlay.open { display: flex; }
 
-        /* --- FORM ELEMENTS --- */
-        .panel-content { padding: 20px; overflow-y: auto; height: 100%; padding-bottom: 80px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; font-size: 11px; margin-bottom: 6px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        input, textarea, select { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; font-size: 16px; font-family: inherit; }
-        .btn { background: #2a2a2a; border: 1px solid #444; color: #ddd; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; width: 100%; display: block; text-align: center; margin-bottom: 5px; cursor: pointer; }
-        .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
-        .btn-danger { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; }
+        .modal-sheet {
+            background: #1a1a1a;
+            width: 100%;
+            max-height: 90vh;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            padding: 20px;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            border-top: 1px solid var(--border);
+        }
+        .modal-overlay.open .modal-sheet { transform: translateY(0); }
 
-        .hidden { display: none !important; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .close-btn { background: #333; border: none; width: 30px; height: 30px; border-radius: 50%; color: #fff; }
 
-        /* List Specifics */
-        .inbox-item { background: #222; padding: 12px; margin-bottom: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-        .inbox-item span:first-child { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-        .inbox-actions { display: flex; gap: 15px; font-size: 18px; flex-shrink: 0; }
+        .detail-section { margin-bottom: 20px; }
+        .detail-label { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: bold; }
+        .detail-content { font-size: 14px; line-height: 1.6; color: #ddd; }
         
-        .goal-node { margin-bottom: 8px; }
-        .goal-content { background: #222; padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; }
-        .goal-text { border: none; background: transparent; color: white; font-size: 14px; flex-grow: 1; margin-left: 10px; }
-        .goal-children { margin-left: 15px; border-left: 2px solid #333; padding-left: 10px; margin-top: 5px; }
+        .subtask-item { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
+        .checkbox-fake { width: 16px; height: 16px; border: 2px solid #555; border-radius: 3px; }
+        .checkbox-fake.checked { background: var(--ready); border-color: var(--ready); }
 
-        #menu-overlay { background: rgba(0,0,0,0.95); }
-        #menu-overlay .panel-content { display: flex; flex-direction: column; gap: 15px; padding: 30px; text-align: center; }
-        #notification { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; opacity: 0; pointer-events: none; z-index: 1000; transition: opacity 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        /* Markdown Styles */
+        .md-content a { color: var(--accent); }
+        .md-content h1, .md-content h2 { font-size: 16px; margin: 10px 0 5px; color: #fff; }
+        .md-content ul { padding-left: 20px; margin: 5px 0; }
+        
+        /* Settings Form */
+        input[type="text"], input[type="password"] {
+            width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: white; border-radius: 6px; margin-bottom: 10px;
+        }
+        .btn-primary {
+            width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: 6px; color: white; font-weight: bold;
+        }
 
+        #empty-state { text-align: center; padding: 40px; color: #666; font-style: italic; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
-    <!-- TOP HEADER (Added onclick deselect) -->
-    <div id="top-header" onclick="deselectNode()">
-        <div class="app-title">Urgency Flow</div>
-        <div style="display: flex; align-items: center; gap: 5px;">
-            <button class="nav-item" onclick="toggleMenu()" style="width: auto; padding: 10px;">
-                <svg viewBox="0 0 24 24" style="fill: var(--accent);"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
-            </button>
-            <button class="nav-item" onclick="toggleMenu()" style="width: auto; padding: 10px;">
-                <svg viewBox="0 0 24 24" style="fill: #ffffff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));">
-                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.58 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-                </svg>
-            </button>
+    <header>
+        <input type="text" class="search-bar" id="search-input" placeholder="Search tasks, notes..." onkeyup="handleSearch()">
+        <button class="settings-btn" onclick="openSettings()">☁️</button>
+    </header>
+
+    <main id="main-container">
+        <div id="view-tasks" class="view-section active">
+            <div id="task-list"></div>
         </div>
-    </div>
 
-    <!-- MAIN TASK LIST -->
-    <div id="main-container" onclick="deselectNode()">
-        <!-- Content injected by JS -->
-    </div>
-
-    <!-- BOTTOM NAV -->
-    <div id="bottom-nav">
-        <button class="nav-item" onclick="scrollToTop()">
-            <svg viewBox="0 0 24 24"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"/></svg>
-            <span>Top</span>
-        </button>
-        <button class="nav-item" onclick="toggleGoals()">
-            <svg viewBox="0 0 24 24"><path d="M19.03 3.56c-1.67-1.39-3.74-2.3-6.03-2.51v2.01c1.73.19 3.31.88 4.61 1.92l1.42-1.42zM11 3.06V1.05c-2.29.2-4.36 1.12-6.03 2.51l1.42 1.42C7.69 3.94 9.27 3.25 11 3.06zM4.98 6.39L3.56 4.97C2.17 6.64 1.26 8.71 1.05 11h2.01c.19-1.73.88-3.31 1.92-4.61zM20.94 11h2.01c-.21-2.29-1.12-4.36-2.51-6.03l-1.42 1.42c1.04 1.3 1.73 2.88 1.92 4.61zM7 12l5 5 5-5H7z"/></svg>
-            <span>Goals</span>
-        </button>
-        
-        <button class="nav-item nav-fab" onclick="addNode()">
-            <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        </button>
-
-        <button class="nav-item" onclick="toggleInbox()">
-            <svg viewBox="0 0 24 24"><path d="M19 3H4.99c-1.11 0-1.98.89-1.98 2L3 19c0 1.1.88 2 1.99 2H19c1.1 0 2-.88 2-2V5c0-1.11-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z"/></svg>
-            <span>Inbox</span>
-        </button>
-        <button class="nav-item" onclick="toggleNotesPanel()">
-            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-            <span>Notes</span>
-        </button>
-    </div>
-
-    <!-- INSPECTOR SHEET -->
-    <div id="inspector">
-        <div class="drag-handle" onclick="deselectNode()"></div>
-        <div class="panel-content" id="insp-content"></div>
-    </div>
-
-    <!-- FULL SCREEN OVERLAYS -->
-    <div id="goals-overlay" class="fullscreen-overlay">
-        <div class="overlay-header"><span class="overlay-title">🎯 Life Goals</span><button class="close-btn" onclick="toggleGoals()">✕</button></div>
-        <div class="panel-content">
-             <div class="year-nav" style="display:flex; justify-content:space-between; margin-bottom:15px; align-items:center;">
-                <button class="btn" style="width:auto" onclick="changeGoalYear(-1)">&lt;</button>
-                <span id="goals-year-display" style="font-weight:bold; font-size:20px;">2024</span>
-                <button class="btn" style="width:auto" onclick="changeGoalYear(1)">&gt;</button>
-            </div>
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <input type="text" id="new-goal-input" placeholder="New root goal..." onkeypress="if(event.key==='Enter') addRootGoal()">
-                <button class="btn btn-primary" style="width:auto" onclick="addRootGoal()">Add</button>
-            </div>
-            <div id="goal-tree-container"></div>
+        <div id="view-agenda" class="view-section">
+            <h3 style="margin-top:0">Today's Agenda</h3>
+            <div id="agenda-list"></div>
         </div>
-    </div>
 
-    <div id="inbox-overlay" class="fullscreen-overlay">
-        <div class="overlay-header"><span class="overlay-title">📥 Inbox / Backlog</span><button class="close-btn" onclick="toggleInbox()">✕</button></div>
-        <div class="panel-content">
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <input type="text" id="inbox-input" placeholder="Quick task..." onkeypress="if(event.key==='Enter') addToInbox()">
-                <button class="btn btn-primary" style="width:auto" onclick="addToInbox()">Add</button>
-            </div>
+        <div id="view-inbox" class="view-section">
+            <h3 style="margin-top:0">Inbox / Ideas</h3>
             <div id="inbox-list"></div>
         </div>
-    </div>
 
-    <div id="notes-overlay" class="fullscreen-overlay">
-        <div class="overlay-header"><span class="overlay-title">📝 Notes</span><button class="close-btn" onclick="toggleNotesPanel()">✕</button></div>
-        <div class="panel-content">
-            <button class="btn btn-primary" onclick="createNewNote()">+ New Independent Note</button>
-            <div id="notes-list-container" style="margin-top:15px;"></div>
+        <div id="view-habits" class="view-section">
+             <h3 style="margin-top:0">Daily Habits</h3>
+            <div id="habit-list"></div>
         </div>
-        <div id="note-editor" class="fullscreen-overlay" style="z-index: 500;">
-            <div class="overlay-header"><button class="close-btn" onclick="closeNoteEditor()">← Back</button><span class="overlay-title">Edit Note</span><button class="btn btn-danger" style="width:auto; padding:5px 10px;" onclick="deleteCurrentNote()">Delete</button></div>
-            <div style="display:flex; flex-direction:column; height:100%; padding:15px; gap:10px;">
-                <input type="text" id="note-title-input" placeholder="Title" oninput="saveCurrentNote()">
-                <textarea id="note-body-input" style="flex-grow:1; resize:none;" placeholder="Start typing..." oninput="saveCurrentNote()"></textarea>
+
+        <div id="view-notes" class="view-section">
+             <h3 style="margin-top:0">Knowledge Base</h3>
+            <div id="note-list"></div>
+        </div>
+    </main>
+
+    <nav>
+        <button class="nav-item active" onclick="switchView('tasks')">
+            <span class="nav-icon">⚡</span>
+            <span>Tasks</span>
+        </button>
+        <button class="nav-item" onclick="switchView('agenda')">
+            <span class="nav-icon">📅</span>
+            <span>Agenda</span>
+        </button>
+        <button class="nav-item" onclick="switchView('inbox')">
+            <span class="nav-icon">📥</span>
+            <span>Inbox</span>
+        </button>
+        <button class="nav-item" onclick="switchView('habits')">
+            <span class="nav-icon">✅</span>
+            <span>Habits</span>
+        </button>
+        <button class="nav-item" onclick="switchView('notes')">
+            <span class="nav-icon">📝</span>
+            <span>Notes</span>
+        </button>
+    </nav>
+
+    <div id="detail-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Task Title</span>
+                <button class="close-btn" onclick="closeModal()">✕</button>
             </div>
+            <div id="modal-content"></div>
         </div>
     </div>
 
-    <div id="menu-overlay" class="fullscreen-overlay">
-        <div class="overlay-header"><span class="overlay-title">⚙️ Menu</span><button class="close-btn" onclick="toggleMenu()">✕</button></div>
-        <div class="panel-content">
-            <button class="btn" onclick="toggleArchivePanel()">🗄️ View Archive</button>
-            <button class="btn" onclick="toggleHeatmap()">📅 Activity Heatmap</button>
-            <hr style="border-color:#333; width:100%; margin:20px 0;">
-            <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:15px;">
-                <label>GitHub Sync</label>
-                <input type="password" id="github-token" placeholder="Token" onchange="saveGithubToken(this.value)" style="margin-bottom:10px;">
-                <input type="text" id="gist-id" placeholder="Gist ID" readonly style="margin-bottom:10px; opacity:0.5;">
-                <div style="display:flex; gap:10px;"><button class="btn" onclick="pullFromGist()">⬇ Pull</button><button class="btn btn-primary" onclick="pushToGist()">⬆ Push</button></div>
+    <div id="settings-modal" class="modal-overlay" onclick="closeSettings(event)">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">Sync Settings</span>
+                <button class="close-btn" onclick="closeSettings()">✕</button>
             </div>
-            <button class="btn" onclick="saveData(true)">💾 Export JSON</button>
-            <button class="btn" onclick="document.getElementById('file-input').click()">📂 Import JSON</button>
-            <button class="btn btn-danger" onclick="clearData()">⚠️ Reset App</button>
+            <p style="font-size:12px; color:#888; margin-bottom:15px;">
+                Enter your GitHub Token and the Gist ID from your desktop app to sync. This viewer is <b>Read-Only</b>.
+            </p>
+            <label class="detail-label">GitHub Token</label>
+            <input type="password" id="gh-token" placeholder="ghp_...">
+            
+            <label class="detail-label">Gist ID</label>
+            <input type="text" id="gist-id" placeholder="e.g. 8f4a...">
+
+            <button class="btn-primary" onclick="pullData()">⬇ Sync Now</button>
+            <div id="sync-status" style="margin-top:10px; font-size:12px; text-align:center; color:var(--accent);"></div>
         </div>
     </div>
 
-    <div id="archive-overlay" class="fullscreen-overlay">
-        <div class="overlay-header"><span class="overlay-title">🗄️ Archive</span><button class="close-btn" onclick="toggleArchivePanel()">✕</button></div>
-        <div class="panel-content" id="archive-list-container"></div>
-    </div>
-    
-    <div id="heatmap-overlay" class="fullscreen-overlay">
-        <div class="overlay-header"><span class="overlay-title">Activity</span><button class="close-btn" onclick="toggleHeatmap()">✕</button></div>
-        <div class="panel-content">
-             <div class="heatmap-controls" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <button class="btn" style="width:auto" onclick="changeHeatmapYear(-1)">&lt;</button>
-                <h2 id="heatmap-title" style="margin: 0; font-size:16px;">2024</h2>
-                <button class="btn" style="width:auto" onclick="changeHeatmapYear(1)">&gt;</button>
-            </div>
-            <div id="heatmap-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;"></div>
-        </div>
-    </div>
-
-    <input type="file" id="file-input" style="display:none" onchange="loadFile(this)">
-    <div id="notification">State Saved</div>
-
-<script>
-    // --- STATE MANAGEMENT ---
-    let nodes = [];
-    let archivedNodes = [];
-    let inbox = []; 
-    let lifeGoals = {}; 
-    let notes = []; 
-    let currentGoalYear = new Date().getFullYear();
-    let selectedNodeId = null; 
-    let currentEditingNoteId = null;
-    let currentHeatmapYear = new Date().getFullYear();
-    
-    // Sync State
-    let githubToken = '';
-    let gistId = '';
-    const GIST_FILENAME = 'urgency_flow_data.json';
-    const ARCHIVE_THRESHOLD_MS = 15 * 24 * 60 * 60 * 1000; 
-
-    // --- INITIALIZATION ---
-    document.addEventListener('DOMContentLoaded', () => {
-        loadFromStorage();
-        if (nodes.length === 0 && inbox.length === 0 && Object.keys(lifeGoals).length === 0 && archivedNodes.length === 0) {
-            initDemoData();
-        }
-        
-        if(githubToken) document.getElementById('github-token').value = githubToken;
-        if(gistId) document.getElementById('gist-id').value = gistId;
-        
-        checkAutoArchive(); 
-        updateCalculations();
-        render(); 
-        
-        setInterval(tickTimers, 1000);
-        setInterval(checkAutoArchive, 60000); 
-    });
-
-    // --- UI TOGGLERS ---
-    function toggleMenu() { toggleOverlay('menu-overlay'); }
-    function toggleGoals() { renderGoals(); toggleOverlay('goals-overlay'); }
-    function toggleInbox() { renderInbox(); toggleOverlay('inbox-overlay'); }
-    function toggleNotesPanel() { renderNotesList(); toggleOverlay('notes-overlay'); }
-    function toggleArchivePanel() { renderArchiveList(); toggleOverlay('archive-overlay'); }
-    function toggleHeatmap() { renderHeatmap(); toggleOverlay('heatmap-overlay'); }
-    
-    function toggleOverlay(id) {
-        const el = document.getElementById(id);
-        const isVisible = el.classList.contains('visible');
-        document.querySelectorAll('.fullscreen-overlay').forEach(o => o.classList.remove('visible'));
-        if(!isVisible) el.classList.add('visible');
-    }
-    
-    function scrollToTop() {
-        document.getElementById('main-container').scrollTop = 0;
-    }
-    
-    function highlightNode(id) {
-        const el = document.getElementById('card-' + id);
-        if (el) {
-            // Close inspector if open to see the jump
-            document.getElementById('inspector').classList.remove('visible');
-            el.scrollIntoView({behavior: 'smooth', block: 'center'});
-            el.classList.add('highlight-pulse');
-            setTimeout(() => el.classList.remove('highlight-pulse'), 1500);
-        } else {
-            showNotification("Task not found or archived");
-        }
-    }
-
-    // --- DATA FUNCTIONS ---
-    function createNode(title = 'New Task') {
-        return {
-            id: 'task_' + Date.now() + Math.random().toString(36).substr(2, 5),
-            title: title, description: '', duration: 1, dueDate: '', syncDurationDate: true,
-            completed: false, completedDate: null, isManualUrgent: false,
-            dependencies: [], subtasks: [], activeTimerStart: null, timeLogs: []
+    <script>
+        // --- STATE ---
+        let data = {
+            nodes: [], inbox: [], lifeGoals: {}, habits: [], notes: [], agenda: [], archivedNodes: []
         };
-    }
+        const GIST_FILENAME = 'urgency_flow_data.json';
 
-    function createGoal(text) {
-        return { id: 'goal_' + Date.now() + Math.random().toString(36).substr(2, 5), text: text, collapsed: false, children: [] };
-    }
-    
-    function createNoteObject(title, body = "", taskId = null) {
-        return { id: 'note_' + Date.now() + Math.random().toString(36).substr(2, 5), title: title || "New Note", body: body, taskId: taskId, timestamp: Date.now() };
-    }
-
-    function initDemoData() {
-        nodes = [{ id: '1', title: 'Start Here: Tap to Edit', completed: false, duration: 1, dueDate: '', syncDurationDate: true, isManualUrgent: false, dependencies: [], subtasks: [], activeTimerStart: null, timeLogs: [] }];
-        saveToStorage();
-    }
-
-    // --- RENDER LIST ---
-    function render() {
-        const container = document.getElementById('main-container');
-        container.innerHTML = '';
-        
-        // SORTING LOGIC: Urgent > Critical > Due Date > Normal
-        const sortedNodes = [...nodes].sort((a, b) => {
-            // 1. Completion (Completed at bottom)
-            if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLocal();
+            // Load settings
+            document.getElementById('gh-token').value = localStorage.getItem('uf_token') || '';
+            document.getElementById('gist-id').value = localStorage.getItem('uf_gist') || '';
             
-            // 2. Urgency (Red)
-            if (a._isUrgent !== b._isUrgent) return a._isUrgent ? -1 : 1;
-            
-            // 3. Critical Path (Gold)
-            if (a._isCritical !== b._isCritical) return a._isCritical ? -1 : 1;
-            
-            // 4. Due Date
-            if (a.dueDate && b.dueDate) return new Date(a.dueDate) - new Date(b.dueDate);
-            if (a.dueDate) return -1;
-            if (b.dueDate) return 1;
-            
-            return 0;
-        });
-
-        if (sortedNodes.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding:50px; color:#666;">
-                <h3>No Active Tasks</h3>
-                <p>Tap the + button to start planning.</p>
-            </div>`;
-            return;
-        }
-        
-        sortedNodes.forEach(node => {
-            const el = document.createElement('div');
-            el.id = 'card-' + node.id;
-            el.className = 'task-card';
-            
-            // Status Class
-            if (node.completed) el.classList.add('status-completed');
-            else if (node._isUrgent) el.classList.add('status-urgent');
-            else if (node._isCritical) el.classList.add('status-critical');
-            else if (node._isBlocked) el.classList.add('status-blocked');
-
-            // Badges
-            let badgesHtml = '';
-            if (!node.completed) { 
-                if (node._isUrgent) badgesHtml += `<span class="badge urgent">URGENT</span>`; 
-                else if (node._isCritical) badgesHtml += `<span class="badge critical">CRITICAL</span>`; 
-            }
-            
-            const totalTime = getTotalTime(node);
-            if (totalTime > 0 || node.activeTimerStart) {
-                const isActive = !!node.activeTimerStart;
-                badgesHtml += `<span class="badge timer ${isActive?'running':''}" data-node-id="${node.id}">${isActive?'⏱':'⌛'} ${formatTime(totalTime)}</span>`;
-            }
-            
-            if (node.dueDate && !node.completed) { 
-                const due = new Date(node.dueDate); 
-                const isOverdue = due < new Date().setHours(0,0,0,0);
-                const dateStr = due.toLocaleDateString(undefined, {month:'numeric', day:'numeric'});
-                badgesHtml += `<span class="badge" style="${isOverdue?'background:#7f1d1d;color:#fca5a5':''}">📅 ${dateStr}</span>`; 
-            }
-
-            // Progress Bar
-            const totalSubs = node.subtasks.length;
-            const doneSubs = node.subtasks.filter(s => s.done).length;
-            const progress = totalSubs === 0 ? 0 : (doneSubs / totalSubs) * 100;
-
-            // Waiting For Links
-            let depLinks = '';
-            if (node.dependencies.length > 0) {
-                const depHtml = node.dependencies.map(d => {
-                    const p = nodes.find(n => n.id === d.id);
-                    return p ? `<span class="link-tag" onclick="event.stopPropagation(); highlightNode('${p.id}')">↩ ${p.title}</span>` : '';
-                }).join('');
-                if (depHtml) depLinks = `<div class="card-links">Waiting on: ${depHtml}</div>`;
-            }
-
-            el.innerHTML = `
-                <div class="card-header">
-                    <span class="card-title">${node.completed ? '✅ ' : ''}${node.title}</span>
-                </div>
-                <div class="card-meta">${badgesHtml}</div>
-                ${totalSubs > 0 ? `<div class="progress-container"><div class="progress-bar" style="width: ${progress}%"></div></div>` : ''}
-                ${depLinks}
-            `;
-            
-            el.onclick = (e) => { e.stopPropagation(); selectNode(node.id); };
-            container.appendChild(el);
-        });
-    }
-
-    // --- CORE LOGIC (Restored Full Urgency Propagation) ---
-    function updateCalculations() {
-        // Reset flags
-        nodes.forEach(n => { 
-            n._isBlocked = false; 
-            n._isReady = false; 
-            n._isCritical = false; 
-            n._isUrgent = false; 
-            n._isManualUrgentPath = false; // Internal flag for propagation
-            n._earliestStart = 0; 
-            n._earliestFinish = 0; 
-            n._latestFinish = Infinity; 
-        });
-
-        // 1. Forward Pass (Earliest Dates & Blocked Status)
-        let changed = true;
-        let iter = 0;
-        while(changed && iter < nodes.length + 2) {
-            changed = false;
-            nodes.forEach(n => {
-                if (n.completed) return;
-                
-                // Blocked Logic
-                const parents = n.dependencies.filter(d => d.type === 'hard').map(d => nodes.find(p => p.id === d.id)).filter(p => p);
-                if (parents.length > 0 && !parents.every(p => p.completed)) {
-                    n._isBlocked = true;
-                }
-
-                // Earliest Start/Finish
-                let maxPrevEF = 0;
-                n.dependencies.forEach(d => {
-                    const p = nodes.find(x => x.id === d.id);
-                    if (p && p._earliestFinish > maxPrevEF) maxPrevEF = p._earliestFinish;
-                });
-                
-                const dur = n.completed ? 0 : (n.duration || 1);
-                const newEF = maxPrevEF + dur;
-                if (n._earliestFinish !== newEF) {
-                    n._earliestFinish = newEF;
-                    changed = true;
-                }
-            });
-            iter++;
-        }
-
-        // 2. Backward Pass (Latest Dates & Slack)
-        const projectDuration = Math.max(...nodes.map(n => n._earliestFinish), 0);
-        changed = true;
-        iter = 0;
-        while(changed && iter < nodes.length + 2) {
-            changed = false;
-            nodes.forEach(n => {
-                const children = nodes.filter(c => c.dependencies.some(d => d.id === n.id));
-                let derivedLF = Infinity;
-                
-                if (children.length === 0) {
-                    derivedLF = projectDuration;
-                } else {
-                    derivedLF = Math.min(...children.map(c => {
-                        const cDur = c.completed ? 0 : (c.duration || 1);
-                        return c._latestFinish - cDur;
-                    }));
-                }
-
-                // Due Date Constraint
-                if (n.dueDate) {
-                    const daysUntilDue = Math.ceil((new Date(n.dueDate) - new Date().setHours(0,0,0,0)) / (86400000));
-                    if (daysUntilDue < derivedLF) derivedLF = daysUntilDue;
-                }
-
-                if (n._latestFinish !== derivedLF) {
-                    n._latestFinish = derivedLF;
-                    changed = true;
-                }
-            });
-            iter++;
-        }
-
-        // 3. Propagate Manual Urgency Downstream (Pre-calculation)
-        const propagateUrgency = (id) => { 
-            const parents = nodes.filter(p => nodes.find(child => child.id === id && child.dependencies.some(d => d.id === p.id)));
-            // Wait, we need to propagate UPSTREAM (If Child is Urgent, Parent must be Urgent to unblock it)
-            // Or Downstream? "Urgency" usually flows upstream: "I need C done, so B is urgent, so A is urgent".
-            // Implementation: If a node is marked Urgent, all its dependencies become Urgent.
-            const deps = nodes.find(n => n.id === id).dependencies;
-            deps.forEach(d => {
-                const parent = nodes.find(p => p.id === d.id);
-                if (parent && !parent._isManualUrgentPath) {
-                    parent._isManualUrgentPath = true;
-                    propagateUrgency(parent.id);
-                }
-            });
-        };
-
-        nodes.forEach(n => {
-            if (n.isManualUrgent) {
-                n._isManualUrgentPath = true;
-                propagateUrgency(n.id);
+            if(data.nodes.length === 0) {
+                document.getElementById('task-list').innerHTML = '<div id="empty-state">No data found.<br>Click ☁️ to sync from Gist.</div>';
+            } else {
+                updateCalculations(); // Run the logic engine
+                renderAll();
             }
         });
 
-        // 4. Final Status Determination
-        nodes.forEach(n => {
-            if (n.completed) return;
-
-            const slack = n._latestFinish - n._earliestFinish;
-
-            if (n._isManualUrgentPath) {
-                n._isUrgent = true;
-                n._isCritical = true;
-            } else if (slack < 0) {
-                // Negative slack means we are behind schedule -> Urgent
-                n._isUrgent = true;
-                n._isCritical = true;
-                // Also propagate this upstream!
-                propagateUrgency(n.id);
-            } else if (slack === 0) {
-                n._isCritical = true;
+        function loadLocal() {
+            const raw = localStorage.getItem('urgencyFlowData');
+            if(raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    // Handle wrapper vs array legacy
+                    if (Array.isArray(parsed)) data.nodes = parsed;
+                    else data = { ...data, ...parsed }; // Merge default
+                } catch(e) { console.error("Data load error", e); }
             }
-        });
-        
-        // Re-run loop one last time to catch propagation from slack < 0
-        nodes.forEach(n => {
-            if (n.completed) return;
-            if (n._isManualUrgentPath) n._isUrgent = true;
-        });
-    }
-
-    // --- NODE OPERATIONS ---
-    function addNode() { 
-        const n = createNode(); 
-        nodes.push(n); updateCalculations(); render(); selectNode(n.id); saveToStorage(); 
-    }
-
-    function selectNode(id) { 
-        selectedNodeId = id; 
-        const inspector = document.getElementById('inspector');
-        inspector.classList.add('visible');
-        updateInspector(); 
-    }
-    
-    function deselectNode() { 
-        selectedNodeId = null; 
-        document.getElementById('inspector').classList.remove('visible');
-    }
-
-    // --- INSPECTOR LOGIC ---
-    function updateInspector() {
-        const panel = document.getElementById('insp-content'); if (!selectedNodeId) return;
-        let node = nodes.find(n => n.id === selectedNodeId);
-        let isArchived = false;
-        if (!node) { node = archivedNodes.find(n => n.id === selectedNodeId); isArchived = true; }
-        if (!node) return;
-        
-        const isRunning = !!node.activeTimerStart;
-
-        panel.innerHTML = `
-            ${isArchived ? '<div style="background:#444; color:#fff; padding:10px; border-radius:8px; margin-bottom:15px; text-align:center;">🔒 Archived Task</div>' : ''}
-            
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
-                <span style="font-weight:bold;color:#888">Edit Task</span>
-                <button class="btn" style="width:auto;padding:5px 12px;background:#333;margin:0" onclick="deselectNode()">Done</button>
-            </div>
-
-            <div class="form-group"><label>Title</label><input type="text" value="${node.title}" oninput="updateNodeField('title', this.value)"></div>
-            
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <div style="flex:1;"><label>Days</label><input type="number" value="${node.duration}" min="1" onchange="updateNodeField('duration', parseInt(this.value))"></div>
-                <div style="flex:1;"><label>Status</label><button class="btn ${node.completed ? 'btn-primary' : ''}" style="margin:0; height:46px; border:1px solid #555" onclick="toggleCompletion()">${node.completed ? 'Done' : 'Active'}</button></div>
-            </div>
-
-            <div class="form-group">
-                <label>Due Date</label>
-                <input type="date" value="${node.dueDate || ''}" onchange="updateNodeField('dueDate', this.value)">
-                <div style="margin-top:5px; display:flex; align-items:center;">
-                    <input type="checkbox" id="sync-chk" ${node.syncDurationDate ? 'checked' : ''} onchange="updateNodeField('syncDurationDate', this.checked)" style="width:20px; height:20px;">
-                    <label for="sync-chk" style="margin:0 0 0 10px; display:inline;">Link Duration & Date</label>
-                </div>
-            </div>
-            
-            <button class="btn btn-danger" style="border: 1px solid #ef4444; background: ${node.isManualUrgent ? '#ef4444' : 'rgba(239, 68, 68, 0.1)'}; color: ${node.isManualUrgent ? 'white' : '#ef4444'};" onclick="toggleUrgency()">
-                ${node.isManualUrgent ? '🔥 Urgent Priority' : 'Mark as Urgent'}
-            </button>
-
-            <div class="form-group" style="margin-top:20px;">
-                <label>Dependencies (Prerequisites)</label>
-                <select onchange="addDependency(this.value)" style="margin-bottom:10px;">
-                    <option value="">+ Add Parent Task...</option>
-                    ${nodes.filter(n => n.id !== node.id && !node.dependencies.some(d => d.id === n.id)).map(n => `<option value="${n.id}">${n.title}</option>`).join('')}
-                </select>
-                <div>${node.dependencies.map(d => { 
-                    const p = nodes.find(n => n.id === d.id); 
-                    return p ? `<div style="background:#222; padding:8px; margin-bottom:4px; border-radius:4px; display:flex; justify-content:space-between; align-items:center;"><span>${p.title}</span><span onclick="removeDependency('${d.id}')" style="color:red; padding:5px;">✕</span></div>` : ''; 
-                }).join('')}</div>
-            </div>
-
-            <div class="form-group">
-                <label>Subtasks</label>
-                <div id="subtask-list">${node.subtasks.map((st, idx) => `<div style="display:flex; align-items:center; background:#222; padding:8px; margin-bottom:5px; border-radius:4px;"><input type="checkbox" ${st.done ? 'checked' : ''} onchange="toggleSubtask(${idx})" style="width:20px; height:20px; margin-right:10px;"><input type="text" value="${st.text}" onchange="updateSubtaskText(${idx}, this.value)" style="border:none; background:transparent; padding:0;"><span onclick="removeSubtask(${idx})" style="padding:5px; color:#666">✕</span></div>`).join('')}</div>
-                <button class="btn" onclick="addSubtask()">+ Subtask</button>
-            </div>
-            
-            <div style="background:#222; padding:15px; border-radius:8px; margin-top:20px;">
-                <label>Timer: ${formatTime(getTotalTime(node))}</label>
-                <button class="btn ${isRunning ? 'btn-danger' : 'btn-primary'}" onclick="toggleTimer()">
-                    ${isRunning ? 'Stop Timer' : 'Start Timer'}
-                </button>
-            </div>
-
-            <div style="margin-top:30px; margin-bottom:50px;">
-                <button class="btn" style="border-color:#666; color:#aaa; margin-bottom:10px;" onclick="demoteToInbox()">⬇ Move to Inbox</button>
-                <button class="btn btn-danger" onclick="deleteSelectedNode()">Delete Task</button>
-            </div>
-        `;
-    }
-
-    // --- LOGIC HELPERS ---
-    function updateNodeField(field, value) {
-        let node = nodes.find(n => n.id === selectedNodeId);
-        if (node) {
-            node[field] = value;
-            if (node.syncDurationDate) {
-                const today = new Date(); today.setHours(0,0,0,0);
-                if (field === 'duration') { 
-                     const newDate = new Date(today); newDate.setDate(today.getDate() + parseInt(value)); 
-                     node.dueDate = newDate.toISOString().split('T')[0];
-                } else if (field === 'dueDate' && value) {
-                    const diff = Math.ceil((new Date(value) - today) / (1000 * 60 * 60 * 24));
-                    node.duration = Math.max(1, diff);
-                }
-            }
-            updateCalculations(); render(); updateInspector(); saveToStorage();
         }
-    }
 
-    function toggleCompletion() {
-        let node = nodes.find(n => n.id === selectedNodeId);
-        let inArchive = false;
-        if (!node) { node = archivedNodes.find(n => n.id === selectedNodeId); inArchive = true; }
-        if (node) {
-            node.completed = !node.completed;
-            node.completedDate = node.completed ? Date.now() : null;
-            if (!node.completed && inArchive) {
-                archivedNodes = archivedNodes.filter(n => n.id !== node.id);
-                nodes.push(node);
-                renderArchiveList();
-            }
-            updateCalculations(); render(); updateInspector(); saveToStorage();
-        }
-    }
+        // --- SYNC (PULL ONLY) ---
+        async function pullData() {
+            const token = document.getElementById('gh-token').value.trim();
+            const gistId = document.getElementById('gist-id').value.trim();
+            const status = document.getElementById('sync-status');
 
-    function deleteSelectedNode() {
-        if(confirm("Delete task?")) {
-            nodes = nodes.filter(n => n.id !== selectedNodeId);
-            nodes.forEach(n => { n.dependencies = n.dependencies.filter(d => d.id !== selectedNodeId); });
-            deselectNode(); updateCalculations(); render(); saveToStorage();
-        }
-    }
-    
-    function saveGithubToken(val) { githubToken = val.trim(); saveToStorage(); showNotification('Token saved locally.'); }
+            if(!token || !gistId) { status.innerText = "Missing credentials"; return; }
 
-    function saveToStorage() { localStorage.setItem('urgencyFlowData', JSON.stringify({ nodes, archivedNodes, inbox, lifeGoals, notes, githubToken, gistId })); }
-    function loadFromStorage() { 
-        const d = JSON.parse(localStorage.getItem('urgencyFlowData')); 
-        if(d) { nodes = d.nodes||[]; inbox = d.inbox||[]; lifeGoals = d.lifeGoals||[]; notes = d.notes||[]; archivedNodes = d.archivedNodes||[]; githubToken = d.githubToken||''; gistId = d.gistId||''; }
-    }
-    function showNotification(msg) { const n = document.getElementById('notification'); n.innerText = msg; n.style.opacity = '1'; setTimeout(() => n.style.opacity = '0', 1500); }
-    
-    // --- LIST RENDERERS ---
-    function renderInbox() {
-        const div = document.getElementById('inbox-list'); div.innerHTML = '';
-        inbox.forEach((item, idx) => {
-            div.innerHTML += `<div class="inbox-item"><span>${item.title}</span><div class="inbox-actions"><span onclick="promoteInboxTask(${idx})">⬆</span><span onclick="promoteInboxToGoal(${idx})">🎯</span><span onclick="deleteInboxTask(${idx})" style="color:#ef4444">✕</span></div></div>`;
-        });
-    }
+            localStorage.setItem('uf_token', token);
+            localStorage.setItem('uf_gist', gistId);
+            status.innerText = "Connecting...";
 
-    // --- ADDED MISSING FUNCTIONS ---
-    function changeGoalYear(d) {
-        currentGoalYear += d;
-        document.getElementById('goals-year-display').innerText = currentGoalYear;
-        renderGoals();
-    }
-
-    function addToInbox() {
-        const input = document.getElementById('inbox-input');
-        const txt = input.value.trim();
-        if(txt) {
-            inbox.push({id: 'inbox_'+Date.now(), title: txt});
-            input.value = '';
-            renderInbox();
-            saveToStorage();
-        }
-    }
-
-    function promoteInboxTask(idx) { 
-        const item = inbox[idx]; inbox.splice(idx, 1); 
-        nodes.push(createNode(item.title));
-        saveToStorage(); renderInbox(); render(); showNotification("Task promoted");
-    }
-    function promoteInboxToGoal(idx) { 
-        const item = inbox[idx]; if(!lifeGoals[currentGoalYear]) lifeGoals[currentGoalYear] = []; 
-        lifeGoals[currentGoalYear].push(createGoal(item.title)); inbox.splice(idx, 1); 
-        renderInbox(); renderGoals(); toggleOverlay('goals-overlay'); saveToStorage(); showNotification("Goal Created");
-    }
-    function deleteInboxTask(idx) { inbox.splice(idx,1); saveToStorage(); renderInbox(); }
-    
-    function renderGoals() {
-        // Update the visual year display to match the logic variable
-        document.getElementById('goals-year-display').innerText = currentGoalYear;
-
-        const c = document.getElementById('goal-tree-container'); c.innerHTML = '';
-        const goals = lifeGoals[currentGoalYear] || [];
-        if(!goals.length) c.innerHTML = '<div style="color:#666; text-align:center">No goals set for this year.</div>';
-        
-        const listContainer = document.createElement('div');
-        const appendGoals = (list, container) => {
-            list.forEach(g => {
-                const node = document.createElement('div'); node.className = 'goal-node';
-                const content = document.createElement('div'); content.className = 'goal-content';
-                
-                content.innerHTML = `<span style="width:20px; color:#888; display:inline-block; text-align:center;">${g.children.length ? (g.collapsed ? '▶' : '▼') : '•'}</span>`;
-                const caret = content.querySelector('span');
-                caret.onclick = (e) => { e.stopPropagation(); g.collapsed = !g.collapsed; renderGoals(); saveToStorage(); };
-                
-                const input = document.createElement('input'); input.className = 'goal-text'; input.value = g.text;
-                input.onchange = (e) => { g.text = e.target.value; saveToStorage(); };
-                
-                const addSub = document.createElement('span'); addSub.innerText = '+'; addSub.style.padding='10px'; 
-                addSub.onclick = () => { g.children.push(createGoal("Subgoal")); g.collapsed = false; renderGoals(); saveToStorage(); };
-                
-                const delBtn = document.createElement('span'); delBtn.innerText = '✕'; delBtn.style.color='#666'; delBtn.style.padding='10px';
-                delBtn.onclick = () => { if(confirm("Delete goal?")) { const idx = list.indexOf(g); list.splice(idx,1); renderGoals(); saveToStorage(); } };
-
-                content.appendChild(input); content.appendChild(addSub); content.appendChild(delBtn);
-                node.appendChild(content);
-                
-                if(g.children.length && !g.collapsed) { 
-                    const childDiv = document.createElement('div'); childDiv.className='goal-children'; 
-                    appendGoals(g.children, childDiv); node.appendChild(childDiv); 
-                }
-                container.appendChild(node);
-            });
-        };
-        appendGoals(goals, listContainer);
-        c.appendChild(listContainer);
-    }
-    function addRootGoal() { 
-        const txt = document.getElementById('new-goal-input').value.trim();
-        if(txt) { if(!lifeGoals[currentGoalYear]) lifeGoals[currentGoalYear] = []; lifeGoals[currentGoalYear].push(createGoal(txt)); document.getElementById('new-goal-input').value=''; renderGoals(); saveToStorage(); }
-    }
-    
-    function renderNotesList() {
-        const d = document.getElementById('notes-list-container'); d.innerHTML = '';
-        notes.sort((a,b)=>b.timestamp-a.timestamp).forEach(n => {
-            d.innerHTML += `<div onclick="openNoteEditor('${n.id}')" style="background:#222; padding:15px; border-radius:8px; margin-bottom:10px;"><div style="font-weight:bold">${n.title}</div><div style="font-size:12px; color:#888; margin-top:5px;">${n.body.substring(0,50)}...</div></div>`;
-        });
-    }
-    function createNewNote(tid) { notes.push(createNoteObject("New Note", "", tid)); saveToStorage(); renderNotesList(); openNoteEditor(notes[notes.length-1].id); }
-    function openNoteEditor(id) { 
-        currentEditingNoteId = id; const n = notes.find(x=>x.id===id); 
-        document.getElementById('note-title-input').value = n.title;
-        document.getElementById('note-body-input').value = n.body;
-        document.getElementById('note-editor').classList.add('visible');
-    }
-    function closeNoteEditor() { document.getElementById('note-editor').classList.remove('visible'); currentEditingNoteId=null; renderNotesList(); }
-    function saveCurrentNote() {
-        if(currentEditingNoteId) {
-            const n = notes.find(x=>x.id===currentEditingNoteId);
-            n.title = document.getElementById('note-title-input').value;
-            n.body = document.getElementById('note-body-input').value;
-            n.timestamp = Date.now(); saveToStorage();
-        }
-    }
-    function deleteCurrentNote() { notes = notes.filter(n=>n.id!==currentEditingNoteId); closeNoteEditor(); saveToStorage(); }
-
-    function renderArchiveList() {
-        const d = document.getElementById('archive-list-container'); d.innerHTML = '';
-        archivedNodes.forEach(n => {
-            d.innerHTML += `<div class="inbox-item" onclick="selectedNodeId='${n.id}'; toggleArchivePanel(); selectNode('${n.id}');"><span>${n.title}</span><span style="font-size:10px; color:#666">${new Date(n.completedDate).toLocaleDateString()}</span></div>`;
-        });
-    }
-
-    function toggleUrgency() {
-        const node = nodes.find(n => n.id === selectedNodeId);
-        if(node) { node.isManualUrgent = !node.isManualUrgent; updateCalculations(); render(); updateInspector(); saveToStorage(); }
-    }
-    
-    function demoteToInbox() {
-        const node = nodes.find(n => n.id === selectedNodeId);
-        if(node) {
-            inbox.push({id:'inbox_'+Date.now(), title:node.title});
-            deleteSelectedNode(); // This handles removing and saving
-            renderInbox(); showNotification("Moved to Inbox");
-        }
-    }
-
-    // --- TIMING ---
-    function toggleTimer() {
-        const node = nodes.find(n => n.id === selectedNodeId);
-        if(node) {
-            if(node.activeTimerStart) { node.timeLogs.push({start:node.activeTimerStart, end:Date.now(), duration:Date.now()-node.activeTimerStart}); node.activeTimerStart=null; }
-            else node.activeTimerStart=Date.now();
-            updateInspector(); render(); saveToStorage();
-        }
-    }
-    function tickTimers() {
-        nodes.forEach(n => { if(n.activeTimerStart) {
-             const badge = document.querySelector(`.badge.timer[data-node-id="${n.id}"]`);
-             if(badge) badge.innerHTML = `🔴 ${formatTime(getTotalTime(n))}`;
-        }});
-    }
-    function getTotalTime(n) { return n.timeLogs.reduce((a,b)=>a+b.duration,0) + (n.activeTimerStart?Date.now()-n.activeTimerStart:0); }
-    function formatTime(ms) { const m = Math.floor(ms/60000); const h = Math.floor(m/60); return h>0 ? `${h}h ${m%60}m` : `${m}m ${Math.floor((ms%60000)/1000)}s`; }
-    function addSubtask() { const n=nodes.find(x=>x.id===selectedNodeId); n.subtasks.push({text:'Step',done:false}); updateInspector(); saveToStorage(); render(); }
-    function toggleSubtask(i) { const n=nodes.find(x=>x.id===selectedNodeId); n.subtasks[i].done=!n.subtasks[i].done; updateInspector(); saveToStorage(); }
-    function removeSubtask(i) { const n=nodes.find(x=>x.id===selectedNodeId); n.subtasks.splice(i,1); updateInspector(); saveToStorage(); }
-    function updateSubtaskText(i,v) { const n=nodes.find(x=>x.id===selectedNodeId); n.subtasks[i].text=v; saveToStorage(); }
-    function addDependency(pid) { const n=nodes.find(x=>x.id===selectedNodeId); if(pid && !n.dependencies.find(d=>d.id===pid)) { n.dependencies.push({id:pid, type:'hard'}); updateCalculations(); render(); updateInspector(); saveToStorage(); }}
-    function removeDependency(pid) { const n=nodes.find(x=>x.id===selectedNodeId); n.dependencies=n.dependencies.filter(d=>d.id!==pid); updateCalculations(); render(); updateInspector(); saveToStorage(); }
-    
-    // --- HEATMAP ---
-    function renderHeatmap() {
-        const c = document.getElementById('heatmap-container'); c.innerHTML='';
-        const counts = {}; [...nodes, ...archivedNodes].forEach(n => { if(n.dueDate) counts[n.dueDate] = (counts[n.dueDate]||0)+1; });
-        const year = currentHeatmapYear; document.getElementById('heatmap-title').innerText = year;
-        for(let m=0; m<12; m++) {
-            const mDiv = document.createElement('div'); mDiv.style.background='#222'; mDiv.style.padding='5px'; mDiv.style.borderRadius='4px';
-            mDiv.innerHTML = `<div style="font-weight:bold; font-size:10px; margin-bottom:5px;">${new Date(year,m).toLocaleString('default',{month:'short'})}</div>`;
-            const grid = document.createElement('div'); grid.style.display='grid'; grid.style.gridTemplateColumns='repeat(7,1fr)'; grid.style.gap='2px';
-            const days = new Date(year, m+1, 0).getDate();
-            for(let d=1; d<=days; d++) {
-                const date = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                const val = counts[date] || 0;
-                let col = '#333'; if(val>0) col='#1e3a8a'; if(val>2) col='#3b82f6';
-                grid.innerHTML += `<div style="width:100%; aspect-ratio:1; background:${col}; border-radius:1px;"></div>`;
-            }
-            mDiv.appendChild(grid); c.appendChild(mDiv);
-        }
-    }
-    function changeHeatmapYear(d) { currentHeatmapYear+=d; renderHeatmap(); }
-    function checkAutoArchive() {
-        const now = Date.now();
-        const toArchive = nodes.filter(n => n.completed && n.completedDate && (now - n.completedDate > ARCHIVE_THRESHOLD_MS));
-        if (toArchive.length > 0) {
-            nodes = nodes.filter(n => !toArchive.includes(n));
-            archivedNodes.push(...toArchive);
-            saveToStorage(); render();
-        }
-    }
-
-    // --- SYNC ---
-    async function pushToGist() {
-        if (!githubToken) return showNotification('Error: Missing GitHub Token');
-        showNotification('Pushing to GitHub...');
-        const content = JSON.stringify({ nodes, archivedNodes, inbox, lifeGoals, notes }, null, 2);
-        const files = {}; files[GIST_FILENAME] = { content: content };
-        try {
-            let url = 'https://api.github.com/gists'; let method = 'POST';
-            if (gistId) { url = `https://api.github.com/gists/${gistId}`; method = 'PATCH'; }
-            const response = await fetch(url, { method: method, headers: { 'Authorization': `token ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }, body: JSON.stringify({ description: 'Urgency Flow Data Backup', public: false, files: files }) });
-            if (!response.ok) throw new Error('GitHub API Error: ' + response.statusText);
-            const data = await response.json();
-            gistId = data.id; document.getElementById('gist-id').value = gistId; saveToStorage();
-            showNotification('Success! Saved to Gist.');
-        } catch (e) { console.error(e); showNotification('Sync Failed: ' + e.message); }
-    }
-
-    async function pullFromGist() {
-        if (!githubToken) return showNotification('Error: Missing GitHub Token');
-        showNotification('Searching for Gist...');
-        try {
-            if (!gistId) {
-                const listResp = await fetch('https://api.github.com/gists', { headers: { 'Authorization': `token ${githubToken}` } });
-                if (!listResp.ok) throw new Error('Could not list Gists');
-                const gists = await listResp.json();
-                const found = gists.find(g => g.files[GIST_FILENAME]);
-                if (found) { gistId = found.id; document.getElementById('gist-id').value = gistId; showNotification('Found Gist. Downloading...'); } 
-                else { return showNotification('No Gist found. Push first.'); }
-            }
-            const resp = await fetch(`https://api.github.com/gists/${gistId}`, { headers: { 'Authorization': `token ${githubToken}` } });
-            if (!resp.ok) throw new Error('Fetch failed');
-            const data = await resp.json();
-            const fileContent = data.files[GIST_FILENAME].content;
-            const parsed = JSON.parse(fileContent);
-            if (parsed.nodes) nodes = parsed.nodes;
-            if (parsed.archivedNodes) archivedNodes = parsed.archivedNodes;
-            if (parsed.inbox) inbox = parsed.inbox;
-            if (parsed.lifeGoals) lifeGoals = parsed.lifeGoals;
-            if (parsed.notes) notes = parsed.notes;
-            nodes.forEach(n => { if(!n.dependencies) n.dependencies = []; });
-            saveToStorage(); updateCalculations(); render(); renderInbox(); renderGoals();
-            showNotification('Pull Complete! Data updated.');
-        } catch (e) { console.error(e); showNotification('Pull Failed: ' + e.message); }
-    }
-
-    function saveData(dl) { const d = JSON.stringify({nodes, archivedNodes, inbox, lifeGoals, notes}); if(dl) { const b = new Blob([d],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='backup.json'; a.click(); } }
-    function clearData() { if(confirm("Reset all data?")) { localStorage.clear(); location.reload(); } }
-    function loadFile(input) {
-        const file = input.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
             try {
-                const parsed = JSON.parse(e.target.result);
-                if (parsed.nodes) nodes = parsed.nodes;
-                if (parsed.inbox) inbox = parsed.inbox;
-                if (parsed.lifeGoals) lifeGoals = parsed.lifeGoals;
-                if (parsed.notes) notes = parsed.notes;
-                if (parsed.archivedNodes) archivedNodes = parsed.archivedNodes;
-                updateCalculations(); render(); renderInbox(); renderGoals(); saveToStorage();
-                showNotification("File Loaded");
-            } catch (err) { alert("Error parsing JSON"); }
-        }; reader.readAsText(file);
-    }
+                const resp = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                if(!resp.ok) throw new Error("GitHub Error");
+                
+                const json = await resp.json();
+                if(!json.files[GIST_FILENAME]) throw new Error("Invalid Gist file");
 
-</script>
+                const content = JSON.parse(json.files[GIST_FILENAME].content);
+                
+                // Update State
+                if (Array.isArray(content)) data.nodes = content;
+                else data = { ...data, ...content };
+
+                // Save to local storage (using the Desktop App's key so they share if on same browser)
+                localStorage.setItem('urgencyFlowData', JSON.stringify(data));
+                
+                updateCalculations();
+                renderAll();
+                status.innerText = "Sync Complete! ✅";
+                setTimeout(closeSettings, 1000);
+
+            } catch(e) {
+                status.innerText = "Error: " + e.message;
+            }
+        }
+
+        // --- LOGIC ENGINE (Simplified) ---
+        // We need this to determine what is "Urgent" or "Critical" for sorting
+        function updateCalculations() {
+            // Reset calc fields
+            data.nodes.forEach(n => { n._isCritical = false; n._isUrgent = false; n._isBlocked = false; });
+            
+            // 1. Check Blocked
+            data.nodes.forEach(n => {
+                if(n.completed) return;
+                const hardParents = n.dependencies
+                    .filter(d => d.type === 'hard')
+                    .map(d => data.nodes.find(p => p.id === d.id))
+                    .filter(p => p);
+                if(hardParents.some(p => !p.completed)) n._isBlocked = true;
+            });
+
+            // 2. Propagate Manual Urgency
+            const propagate = (id) => {
+                data.nodes.filter(c => c.dependencies.some(d => d.id === id)).forEach(child => {
+                    if(!child._isUrgent) { child._isUrgent = true; propagate(child.id); }
+                });
+            };
+            data.nodes.filter(n => n.isManualUrgent).forEach(n => {
+                n._isUrgent = true; propagate(n.id);
+            });
+
+            // Note: We skip the complex CPM calculations for Slack here to keep it light.
+            // We rely on manual urgency and deadlines for Mobile view.
+        }
+
+        // --- RENDERING ---
+        function switchView(viewName) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            document.querySelector(`.nav-item[onclick="switchView('${viewName}')"]`).classList.add('active');
+            
+            // Re-render specific view to ensure freshness
+            if(viewName === 'tasks') renderTasks();
+            if(viewName === 'notes') renderNotes();
+        }
+
+        function renderAll() {
+            renderTasks();
+            renderAgenda();
+            renderInbox();
+            renderHabits();
+            renderNotes();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('task-list');
+            container.innerHTML = '';
+            
+            // Filter and Sort
+            // 1. Not completed
+            // 2. Urgent Top
+            // 3. Due Date Asc
+            let tasks = data.nodes.filter(n => !n.completed);
+            
+            // Search Filter
+            const query = document.getElementById('search-input').value.toLowerCase();
+            if(query) tasks = tasks.filter(n => n.title.toLowerCase().includes(query));
+
+            tasks.sort((a, b) => {
+                if(a._isUrgent && !b._isUrgent) return -1;
+                if(!a._isUrgent && b._isUrgent) return 1;
+                const dateA = a.dueDate ? new Date(a.dueDate) : new Date(8640000000000000);
+                const dateB = b.dueDate ? new Date(b.dueDate) : new Date(8640000000000000);
+                return dateA - dateB;
+            });
+
+            if(tasks.length === 0) container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">No active tasks found.</div>';
+
+            tasks.forEach(n => {
+                const isUrgent = n._isUrgent || n.isManualUrgent;
+                const badges = [];
+                if(isUrgent) badges.push(`<span class="badge urgent">🔥 URGENT</span>`);
+                if(n.dueDate) {
+                    const due = new Date(n.dueDate);
+                    const isOverdue = due < new Date().setHours(0,0,0,0);
+                    badges.push(`<span class="badge ${isOverdue ? 'overdue' : 'due'}">${due.toLocaleDateString(undefined, {month:'short', day:'numeric'})}</span>`);
+                }
+                if(n._isBlocked) badges.push(`<span class="badge">🔒 Blocked</span>`);
+                if(n.subtasks && n.subtasks.length > 0) {
+                    const done = n.subtasks.filter(s => s.done).length;
+                    badges.push(`<span class="badge">${done}/${n.subtasks.length}</span>`);
+                }
+
+                const div = document.createElement('div');
+                div.className = `card task-card ${isUrgent ? 'urgent' : ''}`;
+                div.onclick = () => openTaskModal(n.id);
+                div.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">${n.title}</div>
+                        ${n.externalLink ? `<a href="${n.externalLink}" target="_blank" onclick="event.stopPropagation()">🔗</a>` : ''}
+                    </div>
+                    <div class="card-meta">
+                        ${badges.join('')}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderAgenda() {
+            const container = document.getElementById('agenda-list');
+            container.innerHTML = '';
+            if(!data.agenda || data.agenda.length === 0) {
+                container.innerHTML = '<div style="color:#666; text-align:center;">Empty Agenda</div>';
+                return;
+            }
+            
+            // Sort by time
+            const sorted = [...data.agenda].sort((a,b) => new Date(a.start) - new Date(b.start));
+            
+            sorted.forEach(slot => {
+                const task = data.nodes.find(n => n.id === slot.taskId);
+                if(!task) return;
+                
+                const start = new Date(slot.start).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const div = document.createElement('div');
+                div.className = 'agenda-row';
+                div.onclick = () => openTaskModal(task.id);
+                div.innerHTML = `
+                    <div class="agenda-time">${start}</div>
+                    <div>
+                        <div style="font-weight:bold">${task.title}</div>
+                        <div style="font-size:11px; color:#888">Tap to view details</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderInbox() {
+            const container = document.getElementById('inbox-list');
+            container.innerHTML = '';
+            data.inbox.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.innerHTML = `<div class="card-title">${item.title}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function renderHabits() {
+            const container = document.getElementById('habit-list');
+            container.innerHTML = '';
+            data.habits.forEach(h => {
+                // Calculate streak simply logic
+                let streak = 0; 
+                // (Complex streak logic omitted for Lite version, just checking if history exists)
+                if(h.history) streak = Object.keys(h.history).length; 
+
+                const todayKey = new Date().toISOString().split('T')[0];
+                const doneToday = h.history && h.history[todayKey];
+
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.style.borderColor = doneToday ? 'var(--ready)' : 'var(--border)';
+                div.innerHTML = `
+                    <div class="habit-row">
+                        <span style="font-weight:bold; ${doneToday ? 'color:var(--ready)' : ''}">${h.title}</span>
+                        <span class="streak-flame">🔥 ${streak}</span>
+                    </div>
+                    <div style="font-size:11px; color:#666; margin-top:5px;">
+                        Target: ${h.target || 1} ${h.type === 'timer' ? 'ms' : ''}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderNotes() {
+            const container = document.getElementById('note-list');
+            container.innerHTML = '';
+            const query = document.getElementById('search-input').value.toLowerCase();
+            
+            let notes = data.notes;
+            if(query) notes = notes.filter(n => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query));
+
+            notes.sort((a,b) => b.timestamp - a.timestamp);
+
+            notes.forEach(note => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.onclick = () => openNoteModal(note);
+                div.innerHTML = `
+                    <div class="card-title">📝 ${note.title}</div>
+                    <div style="font-size:11px; color:#666; margin-top:5px;">
+                        ${new Date(note.timestamp).toLocaleDateString()}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // --- INTERACTION ---
+        function handleSearch() {
+            // Re-render current view with filter
+            const activeView = document.querySelector('.view-section.active').id.replace('view-', '');
+            if(activeView === 'tasks') renderTasks();
+            if(activeView === 'notes') renderNotes();
+        }
+
+        function handleWikiLink(title) {
+            // Find task or note
+            const cleanTitle = title.replace(/^Note: /, '');
+            const task = data.nodes.find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
+            if(task) {
+                openTaskModal(task.id);
+                return;
+            }
+            const note = data.notes.find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
+            if(note) {
+                openNoteModal(note);
+                return;
+            }
+            alert("Linked item not found: " + cleanTitle);
+        }
+
+        function renderMarkdown(text) {
+            if(!text) return '';
+            // Convert [[Link]] to spans
+            const linkedText = text.replace(/\[\[(.*?)\]\]/g, (match, title) => {
+                return `<span style="color:var(--accent); text-decoration:underline; cursor:pointer;" onclick="handleWikiLink('${title}')">${title}</span>`;
+            });
+            return marked.parse(linkedText);
+        }
+
+        function openTaskModal(id) {
+            const task = data.nodes.find(n => n.id === id);
+            if(!task) return;
+
+            document.getElementById('modal-title').innerText = task.title;
+            const content = document.getElementById('modal-content');
+            
+            // Subtasks HTML
+            const subtasksHtml = task.subtasks.map(s => `
+                <div class="subtask-item">
+                    <div class="checkbox-fake ${s.done ? 'checked' : ''}"></div>
+                    <span style="${s.done ? 'opacity:0.5; text-decoration:line-through' : ''}">${s.text}</span>
+                </div>
+            `).join('');
+
+            // Dependencies HTML
+            const deps = task.dependencies.map(d => {
+                const p = data.nodes.find(x => x.id === d.id);
+                return p ? `<div>• ${p.title} (${d.type})</div>` : '';
+            }).join('');
+
+            // Linked Notes
+            const linkedNotes = data.notes.filter(n => n.taskId === id);
+            const notesHtml = linkedNotes.map(n => 
+                `<div class="card" onclick="openNoteModal(data.notes.find(x => x.id === '${n.id}'))" style="padding:10px; font-size:13px;">📝 ${n.title}</div>`
+            ).join('');
+
+            content.innerHTML = `
+                ${task.completed ? '<div style="background:var(--ready); color:black; padding:5px; border-radius:4px; text-align:center; font-weight:bold; margin-bottom:15px;">COMPLETED</div>' : ''}
+                
+                ${task.description ? `<div class="detail-section"><div class="detail-label">Description</div><div class="detail-content md-content">${renderMarkdown(task.description)}</div></div>` : ''}
+
+                ${subtasksHtml ? `<div class="detail-section"><div class="detail-label">Subtasks</div>${subtasksHtml}</div>` : ''}
+
+                ${deps ? `<div class="detail-section"><div class="detail-label">Waiting On</div><div class="detail-content">${deps}</div></div>` : ''}
+
+                ${notesHtml ? `<div class="detail-section"><div class="detail-label">Linked Notes</div>${notesHtml}</div>` : ''}
+            `;
+
+            document.getElementById('detail-modal').classList.add('open');
+        }
+
+        function openNoteModal(note) {
+            document.getElementById('modal-title').innerText = note.title;
+            document.getElementById('modal-content').innerHTML = `
+                <div class="detail-content md-content">${renderMarkdown(note.body)}</div>
+            `;
+            document.getElementById('detail-modal').classList.add('open');
+        }
+
+        function closeModal(e) {
+            if (e && e.target.id !== 'detail-modal' && !e.target.classList.contains('close-btn')) return;
+            document.getElementById('detail-modal').classList.remove('open');
+        }
+
+        function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
+        function closeSettings(e) { 
+            if(e && e.target.id !== 'settings-modal' && !e.target.classList.contains('close-btn')) return;
+            document.getElementById('settings-modal').classList.remove('open'); 
+        }
+
+    </script>
 </body>
 </html>
