@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Urgency Flow: Mobile Viewer</title>
+    <title>Urgency Flow: Viewer</title>
     <style>
         :root {
             --bg-color: #0c1812;
@@ -99,9 +99,15 @@
         /* Habit Specifics */
         .habit-row { display: flex; justify-content: space-between; align-items: center; }
         .streak-flame { color: var(--accent); font-weight: bold; }
-
+        .habit-stats { display: flex; gap: 10px; font-size: 11px; color: #888; margin-top: 5px; }
+        
         /* Agenda Specifics */
-        .agenda-row { display: flex; gap: 15px; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 10px; }
+        .agenda-date-header { 
+            font-size: 12px; font-weight: bold; color: var(--accent); 
+            margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 5px;
+        }
+        .agenda-row { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid #222; }
+        .agenda-row:last-child { border-bottom: none; }
         .agenda-time { font-family: monospace; font-size: 12px; color: var(--text-muted); min-width: 50px; }
 
         /* --- NAV BAR --- */
@@ -191,7 +197,7 @@
 <body>
 
     <header>
-        <input type="text" class="search-bar" id="search-input" placeholder="Search tasks, notes..." onkeyup="handleSearch()">
+        <input type="text" class="search-bar" id="search-input" placeholder="Search..." onkeyup="handleSearch()">
         <button class="settings-btn" onclick="openSettings()">☁️</button>
     </header>
 
@@ -201,7 +207,6 @@
         </div>
 
         <div id="view-agenda" class="view-section">
-            <h3 style="margin-top:0">Today's Agenda</h3>
             <div id="agenda-list"></div>
         </div>
 
@@ -216,7 +221,7 @@
         </div>
 
         <div id="view-notes" class="view-section">
-             <h3 style="margin-top:0">Knowledge Base</h3>
+             <h3 style="margin-top:0">Notes</h3>
             <div id="note-list"></div>
         </div>
     </main>
@@ -275,10 +280,8 @@
     </div>
 
     <script>
-        // --- STATE ---
-        let data = {
-            nodes: [], inbox: [], lifeGoals: {}, habits: [], notes: [], agenda: [], archivedNodes: []
-        };
+        // --- STATE & UTILS ---
+        let data = { nodes: [], inbox: [], lifeGoals: {}, habits: [], notes: [], agenda: [], archivedNodes: [] };
         const GIST_FILENAME = 'urgency_flow_data.json';
 
         // --- INIT ---
@@ -288,10 +291,10 @@
             document.getElementById('gh-token').value = localStorage.getItem('uf_token') || '';
             document.getElementById('gist-id').value = localStorage.getItem('uf_gist') || '';
             
-            if(data.nodes.length === 0) {
+            if(data.nodes.length === 0 && data.habits.length === 0) {
                 document.getElementById('task-list').innerHTML = '<div id="empty-state">No data found.<br>Click ☁️ to sync from Gist.</div>';
             } else {
-                updateCalculations(); // Run the logic engine
+                updateCalculations(); 
                 renderAll();
             }
         });
@@ -301,115 +304,106 @@
             if(raw) {
                 try {
                     const parsed = JSON.parse(raw);
-                    // Handle wrapper vs array legacy
                     if (Array.isArray(parsed)) data.nodes = parsed;
-                    else data = { ...data, ...parsed }; // Merge default
+                    else data = { ...data, ...parsed };
                 } catch(e) { console.error("Data load error", e); }
             }
         }
 
-        // --- SYNC (PULL ONLY) ---
-        async function pullData() {
-            const token = document.getElementById('gh-token').value.trim();
-            const gistId = document.getElementById('gist-id').value.trim();
-            const status = document.getElementById('sync-status');
-
-            if(!token || !gistId) { status.innerText = "Missing credentials"; return; }
-
-            localStorage.setItem('uf_token', token);
-            localStorage.setItem('uf_gist', gistId);
-            status.innerText = "Connecting...";
-
-            try {
-                const resp = await fetch(`https://api.github.com/gists/${gistId}`, {
-                    headers: { 'Authorization': `token ${token}` }
-                });
-                if(!resp.ok) throw new Error("GitHub Error");
-                
-                const json = await resp.json();
-                if(!json.files[GIST_FILENAME]) throw new Error("Invalid Gist file");
-
-                const content = JSON.parse(json.files[GIST_FILENAME].content);
-                
-                // Update State
-                if (Array.isArray(content)) data.nodes = content;
-                else data = { ...data, ...content };
-
-                // Save to local storage (using the Desktop App's key so they share if on same browser)
-                localStorage.setItem('urgencyFlowData', JSON.stringify(data));
-                
-                updateCalculations();
-                renderAll();
-                status.innerText = "Sync Complete! ✅";
-                setTimeout(closeSettings, 1000);
-
-            } catch(e) {
-                status.innerText = "Error: " + e.message;
-            }
+        // --- HABIT HELPERS (Desktop Logic Port) ---
+        function getHabitDateKey(offsetDays = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() - offsetDays);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
-        // --- LOGIC ENGINE (Simplified) ---
-        // We need this to determine what is "Urgent" or "Critical" for sorting
+        function getHabitValue(habit, dateKey) {
+            let val = habit.history ? habit.history[dateKey] : undefined;
+            if (val === undefined) return 0;
+            if (val === true) return 1; // Legacy boolean
+            if (val === false) return 0;
+            return val;
+        }
+
+        function calculateStreak(habit) {
+            let streak = 0;
+            for (let i = 0; i < 365; i++) {
+                const key = getHabitDateKey(i);
+                const val = getHabitValue(habit, key);
+                const target = habit.target || 1;
+                
+                if (val >= target) {
+                    streak++;
+                } else if (i === 0) {
+                    // Today not done? Continue to check yesterday.
+                    continue; 
+                } else {
+                    break; 
+                }
+            }
+            return streak;
+        }
+
+        function formatDuration(ms) {
+            if(!ms) return "0m";
+            const mins = Math.floor(ms / 60000);
+            const hrs = Math.floor(mins / 60);
+            const remainingMins = mins % 60;
+            if (hrs > 0) return `${hrs}h ${remainingMins}m`;
+            return `${mins}m`;
+        }
+
+        // --- AGENDA HELPERS ---
+        function getFriendlyDate(isoString) {
+            const d = new Date(isoString);
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+
+            if(d.toDateString() === today.toDateString()) return "Today";
+            if(d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+            return d.toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
+        }
+
+        // --- LOGIC ENGINE ---
         function updateCalculations() {
-            // Reset calc fields
             data.nodes.forEach(n => { n._isCritical = false; n._isUrgent = false; n._isBlocked = false; });
             
-            // 1. Check Blocked
             data.nodes.forEach(n => {
                 if(n.completed) return;
-                const hardParents = n.dependencies
+                const hardParents = (n.dependencies || [])
                     .filter(d => d.type === 'hard')
                     .map(d => data.nodes.find(p => p.id === d.id))
                     .filter(p => p);
                 if(hardParents.some(p => !p.completed)) n._isBlocked = true;
             });
 
-            // 2. Propagate Manual Urgency
             const propagate = (id) => {
-                data.nodes.filter(c => c.dependencies.some(d => d.id === id)).forEach(child => {
+                data.nodes.filter(c => (c.dependencies||[]).some(d => d.id === id)).forEach(child => {
                     if(!child._isUrgent) { child._isUrgent = true; propagate(child.id); }
                 });
             };
             data.nodes.filter(n => n.isManualUrgent).forEach(n => {
                 n._isUrgent = true; propagate(n.id);
             });
-
-            // Note: We skip the complex CPM calculations for Slack here to keep it light.
-            // We rely on manual urgency and deadlines for Mobile view.
         }
 
         // --- RENDERING ---
         function switchView(viewName) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            
             document.getElementById(`view-${viewName}`).classList.add('active');
             document.querySelector(`.nav-item[onclick="switchView('${viewName}')"]`).classList.add('active');
-            
-            // Re-render specific view to ensure freshness
             if(viewName === 'tasks') renderTasks();
             if(viewName === 'notes') renderNotes();
         }
 
-        function renderAll() {
-            renderTasks();
-            renderAgenda();
-            renderInbox();
-            renderHabits();
-            renderNotes();
-        }
+        function renderAll() { renderTasks(); renderAgenda(); renderInbox(); renderHabits(); renderNotes(); }
 
         function renderTasks() {
             const container = document.getElementById('task-list');
             container.innerHTML = '';
-            
-            // Filter and Sort
-            // 1. Not completed
-            // 2. Urgent Top
-            // 3. Due Date Asc
             let tasks = data.nodes.filter(n => !n.completed);
-            
-            // Search Filter
             const query = document.getElementById('search-input').value.toLowerCase();
             if(query) tasks = tasks.filter(n => n.title.toLowerCase().includes(query));
 
@@ -421,7 +415,7 @@
                 return dateA - dateB;
             });
 
-            if(tasks.length === 0) container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">No active tasks found.</div>';
+            if(tasks.length === 0) container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">No active tasks.</div>';
 
             tasks.forEach(n => {
                 const isUrgent = n._isUrgent || n.isManualUrgent;
@@ -446,9 +440,7 @@
                         <div class="card-title">${n.title}</div>
                         ${n.externalLink ? `<a href="${n.externalLink}" target="_blank" onclick="event.stopPropagation()">🔗</a>` : ''}
                     </div>
-                    <div class="card-meta">
-                        ${badges.join('')}
-                    </div>
+                    <div class="card-meta">${badges.join('')}</div>
                 `;
                 container.appendChild(div);
             });
@@ -458,16 +450,30 @@
             const container = document.getElementById('agenda-list');
             container.innerHTML = '';
             if(!data.agenda || data.agenda.length === 0) {
-                container.innerHTML = '<div style="color:#666; text-align:center;">Empty Agenda</div>';
+                container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">Empty Agenda</div>';
                 return;
             }
             
-            // Sort by time
+            // 1. Sort by time
             const sorted = [...data.agenda].sort((a,b) => new Date(a.start) - new Date(b.start));
+            
+            // 2. Group by Date
+            let currentHeader = "";
             
             sorted.forEach(slot => {
                 const task = data.nodes.find(n => n.id === slot.taskId);
                 if(!task) return;
+                
+                const dateKey = getFriendlyDate(slot.start);
+                
+                // Render header if new date
+                if(dateKey !== currentHeader) {
+                    currentHeader = dateKey;
+                    const h = document.createElement('div');
+                    h.className = 'agenda-date-header';
+                    h.innerText = dateKey;
+                    container.appendChild(h);
+                }
                 
                 const start = new Date(slot.start).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 const div = document.createElement('div');
@@ -475,22 +481,11 @@
                 div.onclick = () => openTaskModal(task.id);
                 div.innerHTML = `
                     <div class="agenda-time">${start}</div>
-                    <div>
-                        <div style="font-weight:bold">${task.title}</div>
-                        <div style="font-size:11px; color:#888">Tap to view details</div>
+                    <div style="flex:1">
+                        <div style="font-weight:600; font-size:14px">${task.title}</div>
+                        <div style="font-size:11px; color:#666">${new Date(slot.end).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} end</div>
                     </div>
                 `;
-                container.appendChild(div);
-            });
-        }
-
-        function renderInbox() {
-            const container = document.getElementById('inbox-list');
-            container.innerHTML = '';
-            data.inbox.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.innerHTML = `<div class="card-title">${item.title}</div>`;
                 container.appendChild(div);
             });
         }
@@ -498,25 +493,41 @@
         function renderHabits() {
             const container = document.getElementById('habit-list');
             container.innerHTML = '';
-            data.habits.forEach(h => {
-                // Calculate streak simply logic
-                let streak = 0; 
-                // (Complex streak logic omitted for Lite version, just checking if history exists)
-                if(h.history) streak = Object.keys(h.history).length; 
+            
+            if(!data.habits || data.habits.length === 0) {
+                container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">No habits tracked.</div>';
+                return;
+            }
 
-                const todayKey = new Date().toISOString().split('T')[0];
-                const doneToday = h.history && h.history[todayKey];
+            data.habits.forEach(h => {
+                // Correct streak calculation
+                const streak = calculateStreak(h); 
+                
+                const todayKey = getHabitDateKey(0);
+                const val = getHabitValue(h, todayKey);
+                const target = h.target || 1;
+                const isDone = val >= target;
+
+                // Format "Target" display
+                let targetDisplay = "";
+                if(h.type === 'timer') {
+                    targetDisplay = `Done: ${formatDuration(val)} / ${formatDuration(target)}`;
+                } else if (h.type === 'counter') {
+                    targetDisplay = `Count: ${val} / ${target}`;
+                } else {
+                    targetDisplay = isDone ? "Completed Today" : "Not done yet";
+                }
 
                 const div = document.createElement('div');
                 div.className = 'card';
-                div.style.borderColor = doneToday ? 'var(--ready)' : 'var(--border)';
+                div.style.borderLeft = isDone ? '4px solid var(--ready)' : '4px solid var(--border)';
                 div.innerHTML = `
                     <div class="habit-row">
-                        <span style="font-weight:bold; ${doneToday ? 'color:var(--ready)' : ''}">${h.title}</span>
+                        <span style="font-weight:bold; ${isDone ? 'color:var(--ready)' : ''}">${h.title}</span>
                         <span class="streak-flame">🔥 ${streak}</span>
                     </div>
-                    <div style="font-size:11px; color:#666; margin-top:5px;">
-                        Target: ${h.target || 1} ${h.type === 'timer' ? 'ms' : ''}
+                    <div class="habit-stats">
+                        ${targetDisplay}
                     </div>
                 `;
                 container.appendChild(div);
@@ -527,11 +538,11 @@
             const container = document.getElementById('note-list');
             container.innerHTML = '';
             const query = document.getElementById('search-input').value.toLowerCase();
-            
-            let notes = data.notes;
+            let notes = data.notes || [];
             if(query) notes = notes.filter(n => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query));
-
             notes.sort((a,b) => b.timestamp - a.timestamp);
+
+            if(notes.length === 0) container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">No notes found.</div>';
 
             notes.forEach(note => {
                 const div = document.createElement('div');
@@ -539,41 +550,80 @@
                 div.onclick = () => openNoteModal(note);
                 div.innerHTML = `
                     <div class="card-title">📝 ${note.title}</div>
-                    <div style="font-size:11px; color:#666; margin-top:5px;">
-                        ${new Date(note.timestamp).toLocaleDateString()}
-                    </div>
+                    <div style="font-size:11px; color:#666; margin-top:5px;">${new Date(note.timestamp).toLocaleDateString()}</div>
                 `;
                 container.appendChild(div);
             });
         }
 
+        function renderInbox() {
+            const container = document.getElementById('inbox-list');
+            container.innerHTML = '';
+            if(!data.inbox || data.inbox.length === 0) {
+                container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">Inbox empty.</div>';
+                return;
+            }
+            data.inbox.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.innerHTML = `<div class="card-title">${item.title}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        // --- SYNC ---
+        async function pullData() {
+            const token = document.getElementById('gh-token').value.trim();
+            const gistId = document.getElementById('gist-id').value.trim();
+            const status = document.getElementById('sync-status');
+
+            if(!token || !gistId) { status.innerText = "Missing credentials"; return; }
+
+            localStorage.setItem('uf_token', token);
+            localStorage.setItem('uf_gist', gistId);
+            status.innerText = "Connecting...";
+
+            try {
+                const resp = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                if(!resp.ok) throw new Error("GitHub Error");
+                
+                const json = await resp.json();
+                if(!json.files[GIST_FILENAME]) throw new Error("Invalid Gist file");
+
+                const content = JSON.parse(json.files[GIST_FILENAME].content);
+                
+                if (Array.isArray(content)) data.nodes = content;
+                else data = { ...data, ...content };
+
+                localStorage.setItem('urgencyFlowData', JSON.stringify(data));
+                updateCalculations();
+                renderAll();
+                status.innerText = "Sync Complete! ✅";
+                setTimeout(closeSettings, 1000);
+
+            } catch(e) { status.innerText = "Error: " + e.message; }
+        }
+
         // --- INTERACTION ---
         function handleSearch() {
-            // Re-render current view with filter
             const activeView = document.querySelector('.view-section.active').id.replace('view-', '');
             if(activeView === 'tasks') renderTasks();
             if(activeView === 'notes') renderNotes();
         }
 
         function handleWikiLink(title) {
-            // Find task or note
             const cleanTitle = title.replace(/^Note: /, '');
             const task = data.nodes.find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
-            if(task) {
-                openTaskModal(task.id);
-                return;
-            }
-            const note = data.notes.find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
-            if(note) {
-                openNoteModal(note);
-                return;
-            }
+            if(task) { openTaskModal(task.id); return; }
+            const note = (data.notes || []).find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
+            if(note) { openNoteModal(note); return; }
             alert("Linked item not found: " + cleanTitle);
         }
 
         function renderMarkdown(text) {
             if(!text) return '';
-            // Convert [[Link]] to spans
             const linkedText = text.replace(/\[\[(.*?)\]\]/g, (match, title) => {
                 return `<span style="color:var(--accent); text-decoration:underline; cursor:pointer;" onclick="handleWikiLink('${title}')">${title}</span>`;
             });
@@ -583,50 +633,39 @@
         function openTaskModal(id) {
             const task = data.nodes.find(n => n.id === id);
             if(!task) return;
-
             document.getElementById('modal-title').innerText = task.title;
             const content = document.getElementById('modal-content');
             
-            // Subtasks HTML
-            const subtasksHtml = task.subtasks.map(s => `
+            const subtasksHtml = (task.subtasks||[]).map(s => `
                 <div class="subtask-item">
                     <div class="checkbox-fake ${s.done ? 'checked' : ''}"></div>
                     <span style="${s.done ? 'opacity:0.5; text-decoration:line-through' : ''}">${s.text}</span>
                 </div>
             `).join('');
 
-            // Dependencies HTML
-            const deps = task.dependencies.map(d => {
+            const deps = (task.dependencies||[]).map(d => {
                 const p = data.nodes.find(x => x.id === d.id);
                 return p ? `<div>• ${p.title} (${d.type})</div>` : '';
             }).join('');
 
-            // Linked Notes
-            const linkedNotes = data.notes.filter(n => n.taskId === id);
+            const linkedNotes = (data.notes||[]).filter(n => n.taskId === id);
             const notesHtml = linkedNotes.map(n => 
                 `<div class="card" onclick="openNoteModal(data.notes.find(x => x.id === '${n.id}'))" style="padding:10px; font-size:13px;">📝 ${n.title}</div>`
             ).join('');
 
             content.innerHTML = `
                 ${task.completed ? '<div style="background:var(--ready); color:black; padding:5px; border-radius:4px; text-align:center; font-weight:bold; margin-bottom:15px;">COMPLETED</div>' : ''}
-                
                 ${task.description ? `<div class="detail-section"><div class="detail-label">Description</div><div class="detail-content md-content">${renderMarkdown(task.description)}</div></div>` : ''}
-
                 ${subtasksHtml ? `<div class="detail-section"><div class="detail-label">Subtasks</div>${subtasksHtml}</div>` : ''}
-
                 ${deps ? `<div class="detail-section"><div class="detail-label">Waiting On</div><div class="detail-content">${deps}</div></div>` : ''}
-
                 ${notesHtml ? `<div class="detail-section"><div class="detail-label">Linked Notes</div>${notesHtml}</div>` : ''}
             `;
-
             document.getElementById('detail-modal').classList.add('open');
         }
 
         function openNoteModal(note) {
             document.getElementById('modal-title').innerText = note.title;
-            document.getElementById('modal-content').innerHTML = `
-                <div class="detail-content md-content">${renderMarkdown(note.body)}</div>
-            `;
+            document.getElementById('modal-content').innerHTML = `<div class="detail-content md-content">${renderMarkdown(note.body)}</div>`;
             document.getElementById('detail-modal').classList.add('open');
         }
 
@@ -640,7 +679,6 @@
             if(e && e.target.id !== 'settings-modal' && !e.target.classList.contains('close-btn')) return;
             document.getElementById('settings-modal').classList.remove('open'); 
         }
-
     </script>
 </body>
 </html>
