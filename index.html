@@ -439,28 +439,71 @@
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
-        function getHabitValue(habit, dateKey) {
-            let val = habit.history ? habit.history[dateKey] : undefined;
-            if (val === undefined) return 0;
-            if (val === true) return 1;
-            if (val === false) return 0;
-            return val;
+        // NEW HELPERS FOR FREQUENCY
+        function getPeriodBounds(frequency, date = new Date()) {
+            const start = new Date(date);
+            const end = new Date(date);
+            if (frequency === 'weekly') {
+                const day = start.getDay();
+                start.setDate(start.getDate() - day); // Start of week (Sunday)
+                start.setHours(0,0,0,0);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23,59,59,999);
+            } else if (frequency === 'monthly') {
+                start.setDate(1);
+                start.setHours(0,0,0,0);
+                end.setMonth(start.getMonth() + 1, 0);
+                end.setHours(23,59,59,999);
+            } else { // Daily
+                start.setHours(0,0,0,0);
+                end.setHours(23,59,59,999);
+            }
+            return { start, end };
+        }
+
+        function getSumInPeriod(habit, bounds) {
+            let sum = 0;
+            if (!habit.history) return 0;
+            for (const [dateKey, value] of Object.entries(habit.history)) {
+                const d = new Date(dateKey);
+                if (d >= bounds.start && d <= bounds.end) {
+                    sum += (typeof value === 'boolean') ? (value ? 1 : 0) : value;
+                }
+            }
+            // Add current running timer if it's within this period (read-only note: usually desktop-only but included for accuracy)
+            if (habit.activeTimerStart && habit.type === 'timer') {
+                const now = Date.now();
+                if (now >= bounds.start.getTime() && now <= bounds.end.getTime()) {
+                    sum += (now - habit.activeTimerStart);
+                }
+            }
+            return sum;
         }
 
         function calculateStreak(habit) {
             let streak = 0;
-            for (let i = 0; i < 365; i++) {
-                const key = getHabitDateKey(i);
-                const val = getHabitValue(habit, key);
-                const target = habit.target || 1;
-                
-                if (val >= target) {
+            const freq = habit.frequency || 'daily';
+            let checkDate = new Date();
+            
+            for (let i = 0; i < 52; i++) { // Check up to 52 periods back
+                const bounds = getPeriodBounds(freq, checkDate);
+                const sum = getSumInPeriod(habit, bounds);
+                const isMet = sum >= (habit.target || 1);
+
+                if (isMet) {
                     streak++;
-                } else if (i === 0) {
-                    continue; 
                 } else {
-                    break; 
+                    const now = new Date();
+                    if (now >= bounds.start && now <= bounds.end) {
+                        // Current period not finished, continue to previous
+                    } else {
+                        break; 
+                    }
                 }
+                
+                if (freq === 'daily') checkDate.setDate(checkDate.getDate() - 1);
+                else if (freq === 'weekly') checkDate.setDate(checkDate.getDate() - 7);
+                else if (freq === 'monthly') checkDate.setMonth(checkDate.getMonth() - 1);
             }
             return streak;
         }
@@ -514,7 +557,6 @@
             const now = new Date();
             if (!data.agenda || data.agenda.length === 0) return;
 
-            // 1. Check for CURRENT slot
             const currentSlot = data.agenda.find(s => {
                 const start = new Date(s.start);
                 const end = new Date(s.end);
@@ -525,25 +567,20 @@
             const label = document.getElementById('bar-label');
 
             if(currentSlot) {
-                // ACTIVE STATE
                 const task = data.nodes.find(n => n.id === currentSlot.taskId);
                 if(task) {
-                    bar.classList.remove('next-up'); // Ensure green
+                    bar.classList.remove('next-up');
                     label.innerText = "ON SCHEDULE NOW";
                     document.getElementById('np-title').innerText = task.title;
                     const timeLeft = Math.ceil((new Date(currentSlot.end) - now) / 60000);
                     document.getElementById('np-time').innerText = `${timeLeft}m left`;
-                    
                     bar.classList.add('visible');
                     bar.onclick = () => openTaskModal(task.id);
-                    
-                    // Trigger Wake Lock because we are "Working"
                     requestWakeLock();
                     return;
                 }
             }
 
-            // 2. If NO current slot, check for NEXT UP (Future Look-ahead)
             const futureSlots = data.agenda
                 .filter(s => new Date(s.start) > now)
                 .sort((a,b) => new Date(a.start) - new Date(b.start));
@@ -552,25 +589,17 @@
                 const nextSlot = futureSlots[0];
                 const task = data.nodes.find(n => n.id === nextSlot.taskId);
                 if(task) {
-                    // PREVIEW STATE
-                    bar.classList.add('next-up'); // Switch to blue/accent style
+                    bar.classList.add('next-up');
                     label.innerText = "NEXT UP";
                     document.getElementById('np-title').innerText = task.title;
-                    
                     const timeUntil = Math.ceil((new Date(nextSlot.start) - now) / 60000);
-                    const timeStr = timeUntil > 60 
-                        ? `in ${(timeUntil/60).toFixed(1)}h` 
-                        : `in ${timeUntil}m`;
-                    
+                    const timeStr = timeUntil > 60 ? `in ${(timeUntil/60).toFixed(1)}h` : `in ${timeUntil}m`;
                     document.getElementById('np-time').innerText = timeStr;
-                    
                     bar.classList.add('visible');
                     bar.onclick = () => openTaskModal(task.id);
                     return;
                 }
             }
-
-            // If nothing active and nothing coming up
             bar.classList.remove('visible');
         }
 
@@ -639,20 +668,12 @@
                 container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">Empty Agenda</div>';
                 return;
             }
-            
-            // 1. Sort by time
             const sorted = [...data.agenda].sort((a,b) => new Date(a.start) - new Date(b.start));
-            
-            // 2. Group by Date
             let currentHeader = "";
-            
             sorted.forEach(slot => {
                 const task = data.nodes.find(n => n.id === slot.taskId);
                 if(!task) return;
-                
                 const dateKey = getFriendlyDate(slot.start);
-                
-                // Render header if new date
                 if(dateKey !== currentHeader) {
                     currentHeader = dateKey;
                     const h = document.createElement('div');
@@ -660,7 +681,6 @@
                     h.innerText = dateKey;
                     container.appendChild(h);
                 }
-                
                 const start = new Date(slot.start).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 const div = document.createElement('div');
                 div.className = 'agenda-row';
@@ -687,20 +707,20 @@
 
             data.habits.forEach(h => {
                 const streak = calculateStreak(h); 
-                
-                const todayKey = getHabitDateKey(0);
-                const val = getHabitValue(h, todayKey);
+                const bounds = getPeriodBounds(h.frequency || 'daily');
+                const val = getSumInPeriod(h, bounds);
                 const target = h.target || 1;
                 const isDone = val >= target;
 
-                // Format "Target" display
-                let targetDisplay = "";
+                let freqLabel = h.frequency ? h.frequency.charAt(0).toUpperCase() + h.frequency.slice(1) : 'Daily';
+                let displayVal = "";
+
                 if(h.type === 'timer') {
-                    targetDisplay = `Done: ${formatDuration(val)} / ${formatDuration(target)}`;
+                    displayVal = `${formatDuration(val)} / ${formatDuration(target)} (${freqLabel})`;
                 } else if (h.type === 'counter') {
-                    targetDisplay = `Count: ${val} / ${target}`;
+                    displayVal = `${val} / ${target} (${freqLabel})`;
                 } else {
-                    targetDisplay = isDone ? "Completed Today" : "Not done yet";
+                    displayVal = isDone ? `Completed (${freqLabel})` : `Not met (${freqLabel})`;
                 }
 
                 const div = document.createElement('div');
@@ -712,7 +732,7 @@
                         <span class="streak-flame">🔥 ${streak}</span>
                     </div>
                     <div class="habit-stats">
-                        ${targetDisplay}
+                        ${displayVal}
                     </div>
                 `;
                 container.appendChild(div);
