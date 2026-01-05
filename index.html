@@ -10,7 +10,15 @@
             --card-bg: #15261d;
             --text-main: #e0e0e0;
             --text-muted: #a0a0a0;
-            --accent: #3b82f6;
+            
+            /* --- THEME COLORS --- */
+            --theme-tasks: #3b82f6;   /* Blue */
+            --theme-agenda: #f59e0b;  /* Orange/Amber */
+            --theme-inbox: #8b5cf6;   /* Purple */
+            --theme-habits: #10b981;  /* Emerald Green */
+            --theme-notes: #ec4899;   /* Pink/Magenta */
+
+            /* Status Colors */
             --critical: #ffd700;
             --urgent: #ef4444;
             --ready: #10b981;
@@ -51,7 +59,7 @@
             color: #fff;
             font-size: 14px;
         }
-        .search-bar:focus { outline: none; border-color: var(--accent); }
+        .search-bar:focus { outline: none; border-color: var(--theme-tasks); }
 
         .settings-btn {
             background: none; border: none; font-size: 20px; cursor: pointer;
@@ -75,7 +83,7 @@
             align-items: center;
             justify-content: center;
             font-size: 12px;
-            color: var(--accent);
+            color: var(--theme-tasks);
             font-weight: bold;
             transition: height 0.2s ease-out;
         }
@@ -112,12 +120,12 @@
 
         /* Habit Specifics */
         .habit-row { display: flex; justify-content: space-between; align-items: center; }
-        .streak-flame { color: var(--accent); font-weight: bold; }
+        .streak-flame { color: var(--theme-habits); font-weight: bold; }
         .habit-stats { display: flex; gap: 10px; font-size: 11px; color: #888; margin-top: 5px; }
         
         /* Agenda Specifics */
         .agenda-date-header { 
-            font-size: 12px; font-weight: bold; color: var(--accent); 
+            font-size: 12px; font-weight: bold; color: var(--theme-agenda); 
             margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 5px;
         }
         .agenda-row { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid #222; }
@@ -145,10 +153,10 @@
         
         /* Next Up styling variant */
         #active-agenda-bar.next-up {
-            background: rgba(59, 130, 246, 0.15); /* Blue tint */
-            border-top-color: var(--accent);
+            background: rgba(245, 158, 11, 0.15); /* Amber tint */
+            border-top-color: var(--theme-agenda);
         }
-        #active-agenda-bar.next-up .bar-label { color: var(--accent) !important; }
+        #active-agenda-bar.next-up .bar-label { color: var(--theme-agenda) !important; }
         
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
@@ -177,9 +185,18 @@
             border: none;
             width: 100%;
             padding: 8px 0;
+            transition: color 0.2s ease;
         }
 
-        .nav-item.active { color: var(--accent); }
+        .nav-item.active { font-weight: bold; }
+        
+        /* INDIVIDUAL NAV COLORS */
+        .nav-item[data-tab="tasks"].active { color: var(--theme-tasks); }
+        .nav-item[data-tab="agenda"].active { color: var(--theme-agenda); }
+        .nav-item[data-tab="inbox"].active { color: var(--theme-inbox); }
+        .nav-item[data-tab="habits"].active { color: var(--theme-habits); }
+        .nav-item[data-tab="notes"].active { color: var(--theme-notes); }
+
         .nav-icon { font-size: 18px; margin-bottom: 2px; }
 
         /* --- MODALS --- */
@@ -203,16 +220,29 @@
             overflow-y: auto;
             transform: translateY(100%);
             transition: transform 0.3s ease-out;
-            border-top: 1px solid var(--border);
+            
+            /* Dynamic Border Top */
+            border-top: 4px solid var(--border);
         }
+
+        /* Modal Themes (Applied via JS) */
+        .modal-sheet.theme-tasks { border-top-color: var(--theme-tasks); }
+        .modal-sheet.theme-tasks .modal-title { color: var(--theme-tasks); }
+
+        .modal-sheet.theme-notes { border-top-color: var(--theme-notes); }
+        .modal-sheet.theme-notes .modal-title { color: var(--theme-notes); }
+        
+        /* Fallback / Inbox / Default */
+        .modal-sheet.theme-default { border-top-color: #666; }
+
         .modal-overlay.open .modal-sheet { transform: translateY(0); }
 
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .modal-title { font-size: 18px; font-weight: bold; }
+        .modal-title { font-size: 18px; font-weight: bold; transition: color 0.3s; }
         .close-btn { background: #333; border: none; width: 30px; height: 30px; border-radius: 50%; color: #fff; }
 
         .detail-section { margin-bottom: 20px; }
-        .detail-label { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: bold; }
+        .detail-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: bold; }
         .detail-content { font-size: 14px; line-height: 1.6; color: #ddd; }
         
         .subtask-item { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
@@ -220,7 +250,7 @@
         .checkbox-fake.checked { background: var(--ready); border-color: var(--ready); }
 
         /* Markdown Styles */
-        .md-content a { color: var(--accent); }
+        .md-content a { color: var(--theme-tasks); }
         .md-content h1, .md-content h2 { font-size: 16px; margin: 10px 0 5px; color: #fff; }
         .md-content ul { padding-left: 20px; margin: 5px 0; }
         
@@ -229,7 +259,7 @@
             width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: white; border-radius: 6px; margin-bottom: 10px;
         }
         .btn-primary {
-            width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: 6px; color: white; font-weight: bold;
+            width: 100%; padding: 12px; background: var(--theme-tasks); border: none; border-radius: 6px; color: white; font-weight: bold;
         }
 
         #empty-state { text-align: center; padding: 40px; color: #666; font-style: italic; }
@@ -257,17 +287,17 @@
         </div>
 
         <div id="view-inbox" class="view-section">
-            <h3 style="margin-top:0">Inbox / Ideas</h3>
+            <h3 style="margin-top:0; color:var(--theme-inbox)">Inbox / Ideas</h3>
             <div id="inbox-list"></div>
         </div>
 
         <div id="view-habits" class="view-section">
-             <h3 style="margin-top:0">Daily Habits</h3>
+             <h3 style="margin-top:0; color:var(--theme-habits)">Daily Habits</h3>
             <div id="habit-list"></div>
         </div>
 
         <div id="view-notes" class="view-section">
-             <h3 style="margin-top:0">Notes</h3>
+             <h3 style="margin-top:0; color:var(--theme-notes)">Notes</h3>
             <div id="note-list"></div>
         </div>
     </main>
@@ -284,30 +314,30 @@
     </div>
 
     <nav>
-        <button class="nav-item active" onclick="switchView('tasks')">
+        <button class="nav-item active" data-tab="tasks" onclick="switchView('tasks')">
             <span class="nav-icon">⚡</span>
             <span>Tasks</span>
         </button>
-        <button class="nav-item" onclick="switchView('agenda')">
+        <button class="nav-item" data-tab="agenda" onclick="switchView('agenda')">
             <span class="nav-icon">📅</span>
             <span>Agenda</span>
         </button>
-        <button class="nav-item" onclick="switchView('inbox')">
+        <button class="nav-item" data-tab="inbox" onclick="switchView('inbox')">
             <span class="nav-icon">📥</span>
             <span>Inbox</span>
         </button>
-        <button class="nav-item" onclick="switchView('habits')">
+        <button class="nav-item" data-tab="habits" onclick="switchView('habits')">
             <span class="nav-icon">✅</span>
             <span>Habits</span>
         </button>
-        <button class="nav-item" onclick="switchView('notes')">
+        <button class="nav-item" data-tab="notes" onclick="switchView('notes')">
             <span class="nav-icon">📝</span>
             <span>Notes</span>
         </button>
     </nav>
 
     <div id="detail-modal" class="modal-overlay" onclick="closeModal(event)">
-        <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div class="modal-sheet" id="modal-sheet" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <span class="modal-title" id="modal-title">Task Title</span>
                 <button class="close-btn" onclick="closeModal()">✕</button>
@@ -317,7 +347,7 @@
     </div>
 
     <div id="settings-modal" class="modal-overlay" onclick="closeSettings(event)">
-        <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div class="modal-sheet theme-default" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <span class="modal-title">Sync Settings</span>
                 <button class="close-btn" onclick="closeSettings()">✕</button>
@@ -332,7 +362,7 @@
             <input type="text" id="gist-id" placeholder="e.g. 8f4a...">
 
             <button class="btn-primary" onclick="pullData()">⬇ Sync Now</button>
-            <div id="sync-status" style="margin-top:10px; font-size:12px; text-align:center; color:var(--accent);"></div>
+            <div id="sync-status" style="margin-top:10px; font-size:12px; text-align:center; color:var(--theme-tasks);"></div>
         </div>
     </div>
 
@@ -439,7 +469,6 @@
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
-        // NEW HELPERS FOR FREQUENCY
         function getPeriodBounds(frequency, date = new Date()) {
             const start = new Date(date);
             const end = new Date(date);
@@ -470,7 +499,6 @@
                     sum += (typeof value === 'boolean') ? (value ? 1 : 0) : value;
                 }
             }
-            // Add current running timer if it's within this period (read-only note: usually desktop-only but included for accuracy)
             if (habit.activeTimerStart && habit.type === 'timer') {
                 const now = Date.now();
                 if (now >= bounds.start.getTime() && now <= bounds.end.getTime()) {
@@ -607,8 +635,13 @@
         function switchView(viewName) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
             document.getElementById(`view-${viewName}`).classList.add('active');
-            document.querySelector(`.nav-item[onclick="switchView('${viewName}')"]`).classList.add('active');
+            
+            // Use data-tab attribute for more robust selection
+            const btn = document.querySelector(`.nav-item[data-tab="${viewName}"]`);
+            if(btn) btn.classList.add('active');
+
             if(viewName === 'tasks') renderTasks();
             if(viewName === 'notes') renderNotes();
         }
@@ -835,14 +868,25 @@
         function renderMarkdown(text) {
             if(!text) return '';
             const linkedText = text.replace(/\[\[(.*?)\]\]/g, (match, title) => {
-                return `<span style="color:var(--accent); text-decoration:underline; cursor:pointer;" onclick="handleWikiLink('${title}')">${title}</span>`;
+                return `<span style="color:var(--theme-tasks); text-decoration:underline; cursor:pointer;" onclick="handleWikiLink('${title}')">${title}</span>`;
             });
             return marked.parse(linkedText);
+        }
+
+        function resetModalTheme() {
+            // Removes any specific theme classes and adds default
+            const sheet = document.getElementById('modal-sheet');
+            sheet.classList.remove('theme-tasks', 'theme-notes', 'theme-default');
         }
 
         function openTaskModal(id) {
             const task = data.nodes.find(n => n.id === id);
             if(!task) return;
+            
+            // Set Task Theme
+            resetModalTheme();
+            document.getElementById('modal-sheet').classList.add('theme-tasks');
+
             document.getElementById('modal-title').innerText = task.title;
             const content = document.getElementById('modal-content');
             
@@ -874,6 +918,10 @@
         }
 
         function openNoteModal(note) {
+            // Set Note Theme
+            resetModalTheme();
+            document.getElementById('modal-sheet').classList.add('theme-notes');
+
             document.getElementById('modal-title').innerText = note.title;
             document.getElementById('modal-content').innerHTML = `<div class="detail-content md-content">${renderMarkdown(note.body)}</div>`;
             document.getElementById('detail-modal').classList.add('open');
