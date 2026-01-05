@@ -18,7 +18,7 @@
             --nav-height: 60px;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0;
@@ -29,19 +29,6 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-        }
-
-        /* --- PULL TO REFRESH UI --- */
-        #ptr-indicator {
-            height: 0;
-            overflow: hidden;
-            background: var(--bg-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: var(--accent);
-            transition: height 0.2s;
         }
 
         /* --- HEADER --- */
@@ -64,19 +51,39 @@
             color: #fff;
             font-size: 14px;
         }
+        .search-bar:focus { outline: none; border-color: var(--accent); }
+
+        .settings-btn {
+            background: none; border: none; font-size: 20px; cursor: pointer;
+        }
 
         /* --- MAIN CONTENT --- */
         main {
             flex-grow: 1;
             overflow-y: auto;
             padding: 15px;
-            padding-bottom: 140px; 
+            padding-bottom: 140px; /* Extra space for nav + active bar */
             scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
+            position: relative; /* For PTR positioning */
         }
 
-        .view-section { display: none; }
+        /* Pull to Refresh Loader */
+        #ptr-loader {
+            height: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: var(--accent);
+            font-weight: bold;
+            transition: height 0.2s ease-out;
+        }
+
+        .view-section { display: none; animation: fadeIn 0.2s; }
         .view-section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
         /* --- CARDS --- */
         .card {
@@ -85,32 +92,65 @@
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 10px;
+            position: relative;
         }
         
+        /* Task Specifics */
         .task-card { border-left: 4px solid #555; }
-        .task-card.urgent { border-left-color: var(--urgent); }
+        .task-card.critical { border-left-color: var(--critical); }
+        .task-card.urgent { border-left-color: var(--urgent); background: rgba(239, 68, 68, 0.05); }
+        .task-card.completed { opacity: 0.6; text-decoration: line-through; border-left-color: var(--ready); }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+        .card-title { font-weight: 600; font-size: 15px; line-height: 1.4; }
+        .card-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 8px; margin-top: 5px; align-items: center; }
         
-        /* Habit Styling */
-        .habit-card { cursor: pointer; transition: transform 0.1s; position: relative; }
-        .habit-card:active { transform: scale(0.98); }
-        .habit-check { position: absolute; right: 15px; top: 15px; font-size: 18px; }
+        .badge { padding: 2px 6px; border-radius: 4px; background: #222; font-size: 10px; font-weight: bold; }
+        .badge.urgent { color: var(--urgent); background: rgba(239, 68, 68, 0.15); }
+        .badge.due { color: var(--text-main); border: 1px solid #444; }
+        .badge.overdue { color: #fff; background: var(--urgent); border: none; }
+
+        /* Habit Specifics */
+        .habit-row { display: flex; justify-content: space-between; align-items: center; }
+        .streak-flame { color: var(--accent); font-weight: bold; }
+        .habit-stats { display: flex; gap: 10px; font-size: 11px; color: #888; margin-top: 5px; }
+        
+        /* Agenda Specifics */
+        .agenda-date-header { 
+            font-size: 12px; font-weight: bold; color: var(--accent); 
+            margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 5px;
+        }
+        .agenda-row { display: flex; gap: 15px; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid #222; }
+        .agenda-row:last-child { border-bottom: none; }
+        .agenda-time { font-family: monospace; font-size: 12px; color: var(--text-muted); min-width: 50px; }
 
         /* --- ACTIVE AGENDA BAR (Persistent) --- */
         #active-agenda-bar {
             position: fixed;
-            bottom: var(--nav-height); 
+            bottom: var(--nav-height); /* Sits exactly on top of nav */
             left: 0; width: 100%;
-            background: rgba(16, 185, 129, 0.2); 
+            background: rgba(16, 185, 129, 0.15); /* Greenish tint */
             border-top: 1px solid var(--ready);
-            backdrop-filter: blur(8px);
-            padding: 12px 15px;
-            display: none; 
+            border-bottom: 1px solid #000;
+            backdrop-filter: blur(5px);
+            padding: 10px 15px;
+            display: none; /* Hidden by default */
             align-items: center;
             justify-content: space-between;
             z-index: 95;
+            cursor: pointer;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.5);
         }
-        #active-agenda-bar.visible { display: flex; }
-        .next-up { font-size: 10px; color: #888; margin-top: 2px; }
+        #active-agenda-bar.visible { display: flex; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        
+        /* Next Up styling variant */
+        #active-agenda-bar.next-up {
+            background: rgba(59, 130, 246, 0.15); /* Blue tint */
+            border-top-color: var(--accent);
+        }
+        #active-agenda-bar.next-up .bar-label { color: var(--accent) !important; }
+        
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
         /* --- NAV BAR --- */
         nav {
@@ -120,267 +160,715 @@
             background: #111;
             border-top: 1px solid var(--border);
             display: flex;
+            justify-content: space-around;
+            align-items: center;
             z-index: 100;
             padding-bottom: env(safe-area-inset-bottom);
         }
 
         .nav-item {
-            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            gap: 4px;
             color: #666;
             font-size: 10px;
-            background: none; border: none;
+            background: none;
+            border: none;
+            width: 100%;
+            padding: 8px 0;
         }
+
         .nav-item.active { color: var(--accent); }
+        .nav-icon { font-size: 18px; margin-bottom: 2px; }
 
         /* --- MODALS --- */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.8);
             z-index: 2000;
             display: none;
             justify-content: center;
-            align-items: flex-end; 
+            align-items: flex-end; /* Sheet style */
         }
         .modal-overlay.open { display: flex; }
+
         .modal-sheet {
-            background: #1a1a1a; width: 100%; max-height: 85vh;
-            border-top-left-radius: 20px; border-top-right-radius: 20px;
-            padding: 20px; overflow-y: auto;
+            background: #1a1a1a;
+            width: 100%;
+            max-height: 90vh;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            padding: 20px;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            border-top: 1px solid var(--border);
         }
+        .modal-overlay.open .modal-sheet { transform: translateY(0); }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .close-btn { background: #333; border: none; width: 30px; height: 30px; border-radius: 50%; color: #fff; }
+
+        .detail-section { margin-bottom: 20px; }
+        .detail-label { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: bold; }
+        .detail-content { font-size: 14px; line-height: 1.6; color: #ddd; }
+        
+        .subtask-item { display: flex; gap: 10px; margin-bottom: 8px; align-items: center; }
+        .checkbox-fake { width: 16px; height: 16px; border: 2px solid #555; border-radius: 3px; }
+        .checkbox-fake.checked { background: var(--ready); border-color: var(--ready); }
+
+        /* Markdown Styles */
+        .md-content a { color: var(--accent); }
+        .md-content h1, .md-content h2 { font-size: 16px; margin: 10px 0 5px; color: #fff; }
+        .md-content ul { padding-left: 20px; margin: 5px 0; }
+        
+        /* Settings Form */
+        input[type="text"], input[type="password"] {
+            width: 100%; padding: 10px; background: #000; border: 1px solid #444; color: white; border-radius: 6px; margin-bottom: 10px;
+        }
+        .btn-primary {
+            width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: 6px; color: white; font-weight: bold;
+        }
+
+        #empty-state { text-align: center; padding: 40px; color: #666; font-style: italic; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
-    <div id="ptr-indicator">Pull to refresh...</div>
-
     <header>
         <input type="text" class="search-bar" id="search-input" placeholder="Search..." onkeyup="handleSearch()">
-        <button onclick="openSettings()" style="background:none; border:none; font-size:20px;">☁️</button>
+        <button class="settings-btn" onclick="openSettings()">☁️</button>
     </header>
 
     <main id="main-container">
-        <div id="view-tasks" class="view-section active"></div>
-        <div id="view-agenda" class="view-section"></div>
-        <div id="view-habits" class="view-section"></div>
-        <div id="view-notes" class="view-section"></div>
-        <div id="view-inbox" class="view-section"></div>
+        <div id="ptr-loader">
+            <span>⬇ Pull to Sync</span>
+        </div>
+
+        <div id="view-tasks" class="view-section active">
+            <div id="task-list"></div>
+        </div>
+
+        <div id="view-agenda" class="view-section">
+            <div id="agenda-list"></div>
+        </div>
+
+        <div id="view-inbox" class="view-section">
+            <h3 style="margin-top:0">Inbox / Ideas</h3>
+            <div id="inbox-list"></div>
+        </div>
+
+        <div id="view-habits" class="view-section">
+             <h3 style="margin-top:0">Daily Habits</h3>
+            <div id="habit-list"></div>
+        </div>
+
+        <div id="view-notes" class="view-section">
+             <h3 style="margin-top:0">Notes</h3>
+            <div id="note-list"></div>
+        </div>
     </main>
 
     <div id="active-agenda-bar">
-        <div>
-            <div id="np-title" style="font-weight:600; font-size:14px; color:#fff;">Task</div>
-            <div id="next-up-text" class="next-up">Next: --</div>
+        <div style="display:flex; flex-direction:column;">
+            <span id="bar-label" class="bar-label" style="font-size:10px; color:var(--ready); font-weight:bold; letter-spacing:1px;">ON SCHEDULE NOW</span>
+            <span id="np-title" style="font-weight:600; font-size:14px; color:#fff;">Task Name</span>
         </div>
         <div style="text-align:right;">
-            <span id="np-time" style="font-family:monospace; color:var(--ready); font-size:12px; font-weight:bold;">0m left</span>
+            <span id="np-time" style="font-family:monospace; color:var(--text-muted); font-size:12px;">0m left</span>
+            <div style="font-size:9px; color:#666">Tap to view</div>
         </div>
     </div>
 
     <nav>
-        <button class="nav-item active" onclick="switchView('tasks')"><span>⚡</span><span>Tasks</span></button>
-        <button class="nav-item" onclick="switchView('agenda')"><span>📅</span><span>Agenda</span></button>
-        <button class="nav-item" onclick="switchView('habits')"><span>✅</span><span>Habits</span></button>
-        <button class="nav-item" onclick="switchView('notes')"><span>📝</span><span>Notes</span></button>
+        <button class="nav-item active" onclick="switchView('tasks')">
+            <span class="nav-icon">⚡</span>
+            <span>Tasks</span>
+        </button>
+        <button class="nav-item" onclick="switchView('agenda')">
+            <span class="nav-icon">📅</span>
+            <span>Agenda</span>
+        </button>
+        <button class="nav-item" onclick="switchView('inbox')">
+            <span class="nav-icon">📥</span>
+            <span>Inbox</span>
+        </button>
+        <button class="nav-item" onclick="switchView('habits')">
+            <span class="nav-icon">✅</span>
+            <span>Habits</span>
+        </button>
+        <button class="nav-item" onclick="switchView('notes')">
+            <span class="nav-icon">📝</span>
+            <span>Notes</span>
+        </button>
     </nav>
 
-    <div id="detail-modal" class="modal-overlay" onclick="closeModal()">
+    <div id="detail-modal" class="modal-overlay" onclick="closeModal(event)">
         <div class="modal-sheet" onclick="event.stopPropagation()">
-            <h3 id="modal-title"></h3>
-            <div id="modal-content" style="font-size:14px; line-height:1.6; color:#ccc;"></div>
+            <div class="modal-header">
+                <span class="modal-title" id="modal-title">Task Title</span>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            <div id="modal-content"></div>
         </div>
     </div>
 
-    <div id="settings-modal" class="modal-overlay" onclick="closeSettings()">
+    <div id="settings-modal" class="modal-overlay" onclick="closeSettings(event)">
         <div class="modal-sheet" onclick="event.stopPropagation()">
-            <h3>Sync Settings</h3>
-            <input type="password" id="gh-token" placeholder="GitHub Token">
-            <input type="text" id="gist-id" placeholder="Gist ID">
-            <button class="btn-primary" onclick="pullData()" style="width:100%; padding:12px; background:var(--accent); border:none; color:white; border-radius:8px;">Sync Now</button>
-            <div id="sync-status" style="text-align:center; margin-top:10px; font-size:12px;"></div>
+            <div class="modal-header">
+                <span class="modal-title">Sync Settings</span>
+                <button class="close-btn" onclick="closeSettings()">✕</button>
+            </div>
+            <p style="font-size:12px; color:#888; margin-bottom:15px;">
+                Enter your GitHub Token and the Gist ID from your desktop app to sync. This viewer is <b>Read-Only</b>.
+            </p>
+            <label class="detail-label">GitHub Token</label>
+            <input type="password" id="gh-token" placeholder="ghp_...">
+            
+            <label class="detail-label">Gist ID</label>
+            <input type="text" id="gist-id" placeholder="e.g. 8f4a...">
+
+            <button class="btn-primary" onclick="pullData()">⬇ Sync Now</button>
+            <div id="sync-status" style="margin-top:10px; font-size:12px; text-align:center; color:var(--accent);"></div>
         </div>
     </div>
 
     <script>
-        let data = { nodes: [], habits: [], agenda: [], notes: [], inbox: [] };
-        let localHabitLogs = JSON.parse(localStorage.getItem('uf_local_habits') || '{}');
-        let lastKnownAgendaTaskId = null;
+        // --- STATE & UTILS ---
+        let data = { nodes: [], inbox: [], lifeGoals: {}, habits: [], notes: [], agenda: [], archivedNodes: [] };
+        const GIST_FILENAME = 'urgency_flow_data.json';
         let wakeLock = null;
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLocal();
+            // Load settings
+            document.getElementById('gh-token').value = localStorage.getItem('uf_token') || '';
+            document.getElementById('gist-id').value = localStorage.getItem('uf_gist') || '';
+            
+            if(data.nodes.length === 0 && data.habits.length === 0) {
+                document.getElementById('task-list').innerHTML = '<div id="empty-state">No data found.<br>Click ☁️ to sync from Gist.</div>';
+            } else {
+                updateCalculations(); 
+                renderAll();
+            }
+
+            // START THE TICKER FOR THE AGENDA BAR
+            checkActiveAgenda();
+            setInterval(checkActiveAgenda, 5000); // Check every 5 seconds
+            
+            // Init Pull to Refresh
+            initPullToRefresh();
+        });
+
+        function loadLocal() {
+            const raw = localStorage.getItem('urgencyFlowData');
+            if(raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) data.nodes = parsed;
+                    else data = { ...data, ...parsed };
+                } catch(e) { console.error("Data load error", e); }
+            }
+        }
+
+        // --- FEATURE: WAKE LOCK ---
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    if(!wakeLock) {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        console.log('Wake Lock active');
+                        wakeLock.addEventListener('release', () => { wakeLock = null; });
+                    }
+                } catch (err) { console.error(`${err.name}, ${err.message}`); }
+            }
+        }
 
         // --- FEATURE: PULL TO REFRESH ---
-        let touchStart = 0;
-        const main = document.getElementById('main-container');
-        main.addEventListener('touchstart', e => { touchStart = e.touches[0].pageY; });
-        main.addEventListener('touchmove', e => {
-            const touch = e.touches[0].pageY;
-            if (main.scrollTop === 0 && touch > touchStart) {
-                const pullDist = Math.min((touch - touchStart) / 2, 60);
-                document.getElementById('ptr-indicator').style.height = pullDist + 'px';
-            }
-        });
-        main.addEventListener('touchend', () => {
-            if (parseInt(document.getElementById('ptr-indicator').style.height) > 50) pullData();
-            document.getElementById('ptr-indicator').style.height = '0px';
-        });
-
-        // --- FEATURE: SCREEN WAKE LOCK ---
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
+        function initPullToRefresh() {
+            const container = document.getElementById('main-container');
+            const loader = document.getElementById('ptr-loader');
+            let startY = 0;
+            let isPulling = false;
+            
+            container.addEventListener('touchstart', e => {
+                if (container.scrollTop === 0) {
+                    startY = e.touches[0].clientY;
+                    isPulling = true;
                 }
-            } catch (err) { console.log("WakeLock failed"); }
+            }, {passive: true});
+
+            container.addEventListener('touchmove', e => {
+                if (!isPulling) return;
+                const currentY = e.touches[0].clientY;
+                const diff = currentY - startY;
+                
+                if (diff > 0 && container.scrollTop === 0) {
+                    // Pulling down
+                    const resistance = 0.4;
+                    const height = Math.min(diff * resistance, 80);
+                    loader.style.height = `${height}px`;
+                    if (height > 50) loader.querySelector('span').innerText = '⬆ Release to Sync';
+                    else loader.querySelector('span').innerText = '⬇ Pull to Sync';
+                }
+            }, {passive: true});
+
+            container.addEventListener('touchend', async e => {
+                if (!isPulling) return;
+                isPulling = false;
+                const height = parseInt(loader.style.height || '0');
+                
+                if (height > 50) {
+                    loader.querySelector('span').innerText = '🔄 Syncing...';
+                    await pullData();
+                    loader.style.height = '0px';
+                } else {
+                    loader.style.height = '0px';
+                }
+            });
         }
 
-        // --- AUDIO ---
-        async function playAlert() {
-            if (audioCtx.state === 'suspended') await audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.frequency.setValueAtTime(523, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(1046, audioCtx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        // --- HABIT HELPERS ---
+        function getHabitDateKey(offsetDays = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() - offsetDays);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
-        // --- LOGIC ---
+        function getHabitValue(habit, dateKey) {
+            let val = habit.history ? habit.history[dateKey] : undefined;
+            if (val === undefined) return 0;
+            if (val === true) return 1;
+            if (val === false) return 0;
+            return val;
+        }
+
+        function calculateStreak(habit) {
+            let streak = 0;
+            for (let i = 0; i < 365; i++) {
+                const key = getHabitDateKey(i);
+                const val = getHabitValue(habit, key);
+                const target = habit.target || 1;
+                
+                if (val >= target) {
+                    streak++;
+                } else if (i === 0) {
+                    continue; 
+                } else {
+                    break; 
+                }
+            }
+            return streak;
+        }
+
+        function formatDuration(ms) {
+            if(!ms) return "0m";
+            const mins = Math.floor(ms / 60000);
+            const hrs = Math.floor(mins / 60);
+            const remainingMins = mins % 60;
+            if (hrs > 0) return `${hrs}h ${remainingMins}m`;
+            return `${mins}m`;
+        }
+
+        // --- AGENDA HELPERS ---
+        function getFriendlyDate(isoString) {
+            const d = new Date(isoString);
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+
+            if(d.toDateString() === today.toDateString()) return "Today";
+            if(d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+            return d.toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
+        }
+
+        // --- LOGIC ENGINE ---
+        function updateCalculations() {
+            data.nodes.forEach(n => { n._isCritical = false; n._isUrgent = false; n._isBlocked = false; });
+            
+            data.nodes.forEach(n => {
+                if(n.completed) return;
+                const hardParents = (n.dependencies || [])
+                    .filter(d => d.type === 'hard')
+                    .map(d => data.nodes.find(p => p.id === d.id))
+                    .filter(p => p);
+                if(hardParents.some(p => !p.completed)) n._isBlocked = true;
+            });
+
+            const propagate = (id) => {
+                data.nodes.filter(c => (c.dependencies||[]).some(d => d.id === id)).forEach(child => {
+                    if(!child._isUrgent) { child._isUrgent = true; propagate(child.id); }
+                });
+            };
+            data.nodes.filter(n => n.isManualUrgent).forEach(n => {
+                n._isUrgent = true; propagate(n.id);
+            });
+        }
+
+        // --- FEATURE: NEXT UP + TICKER Logic ---
         function checkActiveAgenda() {
             const now = new Date();
-            const sortedAgenda = (data.agenda || []).sort((a,b) => new Date(a.start) - new Date(b.start));
-            const currentIdx = sortedAgenda.findIndex(s => now >= new Date(s.start) && now <= new Date(s.end));
+            if (!data.agenda || data.agenda.length === 0) return;
+
+            // 1. Check for CURRENT slot
+            const currentSlot = data.agenda.find(s => {
+                const start = new Date(s.start);
+                const end = new Date(s.end);
+                return now >= start && now <= end;
+            });
+
             const bar = document.getElementById('active-agenda-bar');
+            const label = document.getElementById('bar-label');
 
-            if (currentIdx !== -1) {
-                const slot = sortedAgenda[currentIdx];
-                const task = data.nodes.find(n => n.id === slot.taskId);
-                
-                // Sound logic
-                if (slot.taskId !== lastKnownAgendaTaskId) {
-                    playAlert();
-                    lastKnownAgendaTaskId = slot.taskId;
-                    requestWakeLock(); // Keep screen on when a task starts
+            if(currentSlot) {
+                // ACTIVE STATE
+                const task = data.nodes.find(n => n.id === currentSlot.taskId);
+                if(task) {
+                    bar.classList.remove('next-up'); // Ensure green
+                    label.innerText = "ON SCHEDULE NOW";
+                    document.getElementById('np-title').innerText = task.title;
+                    const timeLeft = Math.ceil((new Date(currentSlot.end) - now) / 60000);
+                    document.getElementById('np-time').innerText = `${timeLeft}m left`;
+                    
+                    bar.classList.add('visible');
+                    bar.onclick = () => openTaskModal(task.id);
+                    
+                    // Trigger Wake Lock because we are "Working"
+                    requestWakeLock();
+                    return;
                 }
-
-                document.getElementById('np-title').innerText = task ? task.title : "Unknown";
-                const timeLeft = Math.ceil((new Date(slot.end) - now) / 60000);
-                document.getElementById('np-time').innerText = `${timeLeft}m left`;
-                
-                // FEATURE: NEXT UP PREVIEW
-                const nextSlot = sortedAgenda[currentIdx + 1];
-                if (nextSlot) {
-                    const nextTask = data.nodes.find(n => n.id === nextSlot.taskId);
-                    document.getElementById('next-up-text').innerText = `Next: ${nextTask?.title || 'Scheduled Task'}`;
-                } else {
-                    document.getElementById('next-up-text').innerText = "End of Agenda";
-                }
-
-                bar.classList.add('visible');
-            } else {
-                bar.classList.remove('visible');
-                lastKnownAgendaTaskId = null;
             }
+
+            // 2. If NO current slot, check for NEXT UP (Future Look-ahead)
+            const futureSlots = data.agenda
+                .filter(s => new Date(s.start) > now)
+                .sort((a,b) => new Date(a.start) - new Date(b.start));
+            
+            if(futureSlots.length > 0) {
+                const nextSlot = futureSlots[0];
+                const task = data.nodes.find(n => n.id === nextSlot.taskId);
+                if(task) {
+                    // PREVIEW STATE
+                    bar.classList.add('next-up'); // Switch to blue/accent style
+                    label.innerText = "NEXT UP";
+                    document.getElementById('np-title').innerText = task.title;
+                    
+                    const timeUntil = Math.ceil((new Date(nextSlot.start) - now) / 60000);
+                    const timeStr = timeUntil > 60 
+                        ? `in ${(timeUntil/60).toFixed(1)}h` 
+                        : `in ${timeUntil}m`;
+                    
+                    document.getElementById('np-time').innerText = timeStr;
+                    
+                    bar.classList.add('visible');
+                    bar.onclick = () => openTaskModal(task.id);
+                    return;
+                }
+            }
+
+            // If nothing active and nothing coming up
+            bar.classList.remove('visible');
         }
 
-        // --- FEATURE: LOCAL HABIT TOGGLE ---
-        function toggleHabitLocal(habitId) {
-            const today = new Date().toISOString().split('T')[0];
-            if (!localHabitLogs[today]) localHabitLogs[today] = {};
+        // --- RENDERING ---
+        function switchView(viewName) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            document.querySelector(`.nav-item[onclick="switchView('${viewName}')"]`).classList.add('active');
+            if(viewName === 'tasks') renderTasks();
+            if(viewName === 'notes') renderNotes();
+        }
+
+        function renderAll() { renderTasks(); renderAgenda(); renderInbox(); renderHabits(); renderNotes(); }
+
+        function renderTasks() {
+            const container = document.getElementById('task-list');
+            container.innerHTML = '';
+            let tasks = data.nodes.filter(n => !n.completed);
+            const query = document.getElementById('search-input').value.toLowerCase();
+            if(query) tasks = tasks.filter(n => n.title.toLowerCase().includes(query));
+
+            tasks.sort((a, b) => {
+                if(a._isUrgent && !b._isUrgent) return -1;
+                if(!a._isUrgent && b._isUrgent) return 1;
+                const dateA = a.dueDate ? new Date(a.dueDate) : new Date(8640000000000000);
+                const dateB = b.dueDate ? new Date(b.dueDate) : new Date(8640000000000000);
+                return dateA - dateB;
+            });
+
+            if(tasks.length === 0) container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">No active tasks.</div>';
+
+            tasks.forEach(n => {
+                const isUrgent = n._isUrgent || n.isManualUrgent;
+                const badges = [];
+                if(isUrgent) badges.push(`<span class="badge urgent">🔥 URGENT</span>`);
+                if(n.dueDate) {
+                    const due = new Date(n.dueDate);
+                    const isOverdue = due < new Date().setHours(0,0,0,0);
+                    badges.push(`<span class="badge ${isOverdue ? 'overdue' : 'due'}">${due.toLocaleDateString(undefined, {month:'short', day:'numeric'})}</span>`);
+                }
+                if(n._isBlocked) badges.push(`<span class="badge">🔒 Blocked</span>`);
+                if(n.subtasks && n.subtasks.length > 0) {
+                    const done = n.subtasks.filter(s => s.done).length;
+                    badges.push(`<span class="badge">${done}/${n.subtasks.length}</span>`);
+                }
+
+                const div = document.createElement('div');
+                div.className = `card task-card ${isUrgent ? 'urgent' : ''}`;
+                div.onclick = () => openTaskModal(n.id);
+                div.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title">${n.title}</div>
+                        ${n.externalLink ? `<a href="${n.externalLink}" target="_blank" onclick="event.stopPropagation()">🔗</a>` : ''}
+                    </div>
+                    <div class="card-meta">${badges.join('')}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderAgenda() {
+            const container = document.getElementById('agenda-list');
+            container.innerHTML = '';
+            if(!data.agenda || data.agenda.length === 0) {
+                container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">Empty Agenda</div>';
+                return;
+            }
             
-            // Toggle between 0 and 1 (Simple check)
-            localHabitLogs[today][habitId] = localHabitLogs[today][habitId] ? 0 : 1;
-            localStorage.setItem('uf_local_habits', JSON.stringify(localHabitLogs));
-            renderHabits();
+            // 1. Sort by time
+            const sorted = [...data.agenda].sort((a,b) => new Date(a.start) - new Date(b.start));
+            
+            // 2. Group by Date
+            let currentHeader = "";
+            
+            sorted.forEach(slot => {
+                const task = data.nodes.find(n => n.id === slot.taskId);
+                if(!task) return;
+                
+                const dateKey = getFriendlyDate(slot.start);
+                
+                // Render header if new date
+                if(dateKey !== currentHeader) {
+                    currentHeader = dateKey;
+                    const h = document.createElement('div');
+                    h.className = 'agenda-date-header';
+                    h.innerText = dateKey;
+                    container.appendChild(h);
+                }
+                
+                const start = new Date(slot.start).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const div = document.createElement('div');
+                div.className = 'agenda-row';
+                div.onclick = () => openTaskModal(task.id);
+                div.innerHTML = `
+                    <div class="agenda-time">${start}</div>
+                    <div style="flex:1">
+                        <div style="font-weight:600; font-size:14px">${task.title}</div>
+                        <div style="font-size:11px; color:#666">${new Date(slot.end).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} end</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
         }
 
         function renderHabits() {
-            const container = document.getElementById('view-habits');
-            container.innerHTML = '<h3>Daily Habits</h3>';
-            const today = new Date().toISOString().split('T')[0];
-
-            (data.habits || []).forEach(h => {
-                // Merge synced history with local overrides
-                const syncedVal = (h.history && h.history[today]) ? 1 : 0;
-                const localVal = (localHabitLogs[today] && localHabitLogs[today][h.id] !== undefined) 
-                                 ? localHabitLogs[today][h.id] 
-                                 : syncedVal;
-
-                const isDone = localVal >= (h.target || 1);
-                const card = document.createElement('div');
-                card.className = 'card habit-card';
-                card.style.borderLeft = isDone ? '4px solid var(--ready)' : '4px solid var(--border)';
-                card.onclick = () => toggleHabitLocal(h.id);
-                card.innerHTML = `
-                    <div style="font-weight:bold;">${h.title}</div>
-                    <div style="font-size:11px; color:#666;">Local Toggle (Doesn't sync back)</div>
-                    <div class="habit-check">${isDone ? '✅' : '⭕'}</div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // --- STANDARD APP LOGIC ---
-        function switchView(v) {
-            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(`view-${v}`).classList.add('active');
-            event.currentTarget.classList.add('active');
-        }
-
-        function renderTasks() {
-            const container = document.getElementById('view-tasks');
+            const container = document.getElementById('habit-list');
             container.innerHTML = '';
-            data.nodes.filter(n => !n.completed).forEach(n => {
-                const d = document.createElement('div');
-                d.className = `card task-card ${n.isManualUrgent ? 'urgent' : ''}`;
-                d.onclick = () => openTaskModal(n);
-                d.innerHTML = `<div style="font-weight:600;">${n.title}</div>`;
-                container.appendChild(d);
+            
+            if(!data.habits || data.habits.length === 0) {
+                container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">No habits tracked.</div>';
+                return;
+            }
+
+            data.habits.forEach(h => {
+                const streak = calculateStreak(h); 
+                
+                const todayKey = getHabitDateKey(0);
+                const val = getHabitValue(h, todayKey);
+                const target = h.target || 1;
+                const isDone = val >= target;
+
+                // Format "Target" display
+                let targetDisplay = "";
+                if(h.type === 'timer') {
+                    targetDisplay = `Done: ${formatDuration(val)} / ${formatDuration(target)}`;
+                } else if (h.type === 'counter') {
+                    targetDisplay = `Count: ${val} / ${target}`;
+                } else {
+                    targetDisplay = isDone ? "Completed Today" : "Not done yet";
+                }
+
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.style.borderLeft = isDone ? '4px solid var(--ready)' : '4px solid var(--border)';
+                div.innerHTML = `
+                    <div class="habit-row">
+                        <span style="font-weight:bold; ${isDone ? 'color:var(--ready)' : ''}">${h.title}</span>
+                        <span class="streak-flame">🔥 ${streak}</span>
+                    </div>
+                    <div class="habit-stats">
+                        ${targetDisplay}
+                    </div>
+                `;
+                container.appendChild(div);
             });
         }
 
+        function renderNotes() {
+            const container = document.getElementById('note-list');
+            container.innerHTML = '';
+            const query = document.getElementById('search-input').value.toLowerCase();
+            let notes = data.notes || [];
+            if(query) notes = notes.filter(n => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query));
+            notes.sort((a,b) => b.timestamp - a.timestamp);
+
+            if(notes.length === 0) container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">No notes found.</div>';
+
+            notes.forEach(note => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.onclick = () => openNoteModal(note);
+                div.innerHTML = `
+                    <div class="card-title">📝 ${note.title}</div>
+                    <div style="font-size:11px; color:#666; margin-top:5px;">${new Date(note.timestamp).toLocaleDateString()}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderInbox() {
+            const container = document.getElementById('inbox-list');
+            container.innerHTML = '';
+            if(!data.inbox || data.inbox.length === 0) {
+                container.innerHTML = '<div style="color:#666; text-align:center; padding:20px">Inbox empty.</div>';
+                return;
+            }
+            data.inbox.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.innerHTML = `<div class="card-title">${item.title}</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        // --- SYNC ---
         async function pullData() {
-            const token = localStorage.getItem('uf_token');
-            const gistId = localStorage.getItem('uf_gist');
-            if(!token || !gistId) return;
+            const token = document.getElementById('gh-token').value.trim();
+            const gistId = document.getElementById('gist-id').value.trim();
+            const status = document.getElementById('sync-status');
+
+            if(!token || !gistId) { 
+                if(status) status.innerText = "Missing credentials"; 
+                return; 
+            }
+
+            localStorage.setItem('uf_token', token);
+            localStorage.setItem('uf_gist', gistId);
+            if(status) status.innerText = "Connecting...";
+
             try {
                 const resp = await fetch(`https://api.github.com/gists/${gistId}`, {
                     headers: { 'Authorization': `token ${token}` }
                 });
+                if(!resp.ok) throw new Error("GitHub Error");
+                
                 const json = await resp.json();
-                const content = JSON.parse(json.files['urgency_flow_data.json'].content);
-                data = Array.isArray(content) ? { ...data, nodes: content } : { ...data, ...content };
+                if(!json.files[GIST_FILENAME]) throw new Error("Invalid Gist file");
+
+                const content = JSON.parse(json.files[GIST_FILENAME].content);
+                
+                if (Array.isArray(content)) data.nodes = content;
+                else data = { ...data, ...content };
+
                 localStorage.setItem('urgencyFlowData', JSON.stringify(data));
-                renderTasks(); renderHabits(); checkActiveAgenda();
-            } catch(e) { console.error(e); }
+                updateCalculations();
+                renderAll();
+                if(status) {
+                    status.innerText = "Sync Complete! ✅";
+                    setTimeout(closeSettings, 1000);
+                }
+
+            } catch(e) { if(status) status.innerText = "Error: " + e.message; }
         }
 
-        function openTaskModal(n) {
-            document.getElementById('modal-title').innerText = n.title;
-            document.getElementById('modal-content').innerHTML = marked.parse(n.description || '*No description*');
+        // --- INTERACTION ---
+        function handleSearch() {
+            const activeView = document.querySelector('.view-section.active').id.replace('view-', '');
+            if(activeView === 'tasks') renderTasks();
+            if(activeView === 'notes') renderNotes();
+        }
+
+        function handleWikiLink(title) {
+            const cleanTitle = title.replace(/^Note: /, '');
+            const task = data.nodes.find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
+            if(task) { openTaskModal(task.id); return; }
+            const note = (data.notes || []).find(n => n.title.toLowerCase() === cleanTitle.toLowerCase());
+            if(note) { openNoteModal(note); return; }
+            alert("Linked item not found: " + cleanTitle);
+        }
+
+        function renderMarkdown(text) {
+            if(!text) return '';
+            const linkedText = text.replace(/\[\[(.*?)\]\]/g, (match, title) => {
+                return `<span style="color:var(--accent); text-decoration:underline; cursor:pointer;" onclick="handleWikiLink('${title}')">${title}</span>`;
+            });
+            return marked.parse(linkedText);
+        }
+
+        function openTaskModal(id) {
+            const task = data.nodes.find(n => n.id === id);
+            if(!task) return;
+            document.getElementById('modal-title').innerText = task.title;
+            const content = document.getElementById('modal-content');
+            
+            const subtasksHtml = (task.subtasks||[]).map(s => `
+                <div class="subtask-item">
+                    <div class="checkbox-fake ${s.done ? 'checked' : ''}"></div>
+                    <span style="${s.done ? 'opacity:0.5; text-decoration:line-through' : ''}">${s.text}</span>
+                </div>
+            `).join('');
+
+            const deps = (task.dependencies||[]).map(d => {
+                const p = data.nodes.find(x => x.id === d.id);
+                return p ? `<div>• ${p.title} (${d.type})</div>` : '';
+            }).join('');
+
+            const linkedNotes = (data.notes||[]).filter(n => n.taskId === id);
+            const notesHtml = linkedNotes.map(n => 
+                `<div class="card" onclick="openNoteModal(data.notes.find(x => x.id === '${n.id}'))" style="padding:10px; font-size:13px;">📝 ${n.title}</div>`
+            ).join('');
+
+            content.innerHTML = `
+                ${task.completed ? '<div style="background:var(--ready); color:black; padding:5px; border-radius:4px; text-align:center; font-weight:bold; margin-bottom:15px;">COMPLETED</div>' : ''}
+                ${task.description ? `<div class="detail-section"><div class="detail-label">Description</div><div class="detail-content md-content">${renderMarkdown(task.description)}</div></div>` : ''}
+                ${subtasksHtml ? `<div class="detail-section"><div class="detail-label">Subtasks</div>${subtasksHtml}</div>` : ''}
+                ${deps ? `<div class="detail-section"><div class="detail-label">Waiting On</div><div class="detail-content">${deps}</div></div>` : ''}
+                ${notesHtml ? `<div class="detail-section"><div class="detail-label">Linked Notes</div>${notesHtml}</div>` : ''}
+            `;
             document.getElementById('detail-modal').classList.add('open');
         }
 
-        function closeModal() { document.getElementById('detail-modal').classList.remove('open'); }
-        function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
-        function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+        function openNoteModal(note) {
+            document.getElementById('modal-title').innerText = note.title;
+            document.getElementById('modal-content').innerHTML = `<div class="detail-content md-content">${renderMarkdown(note.body)}</div>`;
+            document.getElementById('detail-modal').classList.add('open');
+        }
 
-        // Init
-        document.addEventListener('DOMContentLoaded', () => {
-            const raw = localStorage.getItem('urgencyFlowData');
-            if(raw) data = JSON.parse(raw);
-            renderTasks();
-            renderHabits();
-            setInterval(checkActiveAgenda, 5000);
-            checkActiveAgenda();
-        });
+        function closeModal(e) {
+            if (e && e.target.id !== 'detail-modal' && !e.target.classList.contains('close-btn')) return;
+            document.getElementById('detail-modal').classList.remove('open');
+        }
+
+        function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
+        function closeSettings(e) { 
+            if(e && e.target.id !== 'settings-modal' && !e.target.classList.contains('close-btn')) return;
+            document.getElementById('settings-modal').classList.remove('open'); 
+        }
     </script>
 </body>
 </html>
